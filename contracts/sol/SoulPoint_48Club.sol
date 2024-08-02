@@ -69,7 +69,7 @@ contract Calculator {
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// abigen --bin=Store_sol_Store.bin --abi=Store_sol_Store.abi --pkg=store --out=Store.go
+// abigen --abi contracts/sol/abi.json --pkg SoulPoint_48Club --out contracts/SoulPoint_48Club/SoulPoint_48Club.go
 
 contract SoulPoint_48Club is ERC20, Ownable(msg.sender) {
     constructor() ERC20("48SoulPoint", "48SP") {}
@@ -77,8 +77,7 @@ contract SoulPoint_48Club is ERC20, Ownable(msg.sender) {
     uint256 internal maxHolding = 1;
     mapping(address => bool) public isMember;
     address[] internal _members;
-    Calculator internal calculator =
-        Calculator(0x6759a2334272aD0c9f8C9dF8849F841AfA33B4f6);
+    Calculator internal calculator;
 
     function getPoint(address account) external view returns (uint256) {
         return calculator.getPoint(account);
@@ -92,7 +91,7 @@ contract SoulPoint_48Club is ERC20, Ownable(msg.sender) {
         return 0;
     }
 
-    function mint() external onlyOwner {
+    function mint() external {
         address _to = msg.sender;
         require(this.getPoint(_to) > 0, "the minimum soul point allowed is 1");
         _mint(_to, maxHolding);
