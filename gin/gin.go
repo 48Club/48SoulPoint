@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sp/config"
 	"sp/db"
 	"sp/types"
 	"strings"
@@ -81,5 +82,5 @@ func Run(ctx context.Context) error {
 
 	r.GET("/", cache.CachePage(store, time.Hour, handlerFunc))
 
-	return r.Run(":8545")
+	return r.Run(config.GlobalConfig.Listen)
 }

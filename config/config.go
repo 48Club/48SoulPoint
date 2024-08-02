@@ -10,6 +10,7 @@ import (
 type Config struct {
 	RPC      string   `json:"rpc"`
 	Database database `json:"database"`
+	Listen   string   `json:"listen"`
 }
 
 type database struct {
