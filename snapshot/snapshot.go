@@ -59,6 +59,7 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB) error {
 	if tx.Error != nil {
 		return tx.Error
 	}
+	time.Sleep(time.Second)
 
 	addrs, err := ethclient.GetAllMembers(ctx)
 	if err != nil {

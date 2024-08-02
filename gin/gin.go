@@ -3,6 +3,7 @@ package gin
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"sp/config"
 	"sp/db"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/48Club/service_agent/cloudflare"
+	"github.com/48Club/service_agent/handler"
+	"github.com/48Club/service_agent/limit"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-contrib/cache"
 	"github.com/gin-contrib/cache/persistence"
@@ -29,7 +33,7 @@ func handlerFunc(c *gin.Context) {
 	address := common.HexToAddress(query.Address)
 	tt, _ := time.Parse("20060102", time.Now().AddDate(0, 0, -48).Format("20060102"))
 
-	if address == (common.Address{}) { // empty address query all addresses
+	if query.Address == "" { // empty address query all addresses
 		var points []types.SoulPoints
 
 		tx := db.Server.Model(&types.SoulPoints{}).Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Find(&points)
@@ -68,19 +72,69 @@ func handlerFunc(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []types.SoulPoints{points}})
 }
 
-func Run(ctx context.Context) error {
+var srv *http.Server
 
+func Run(pctx context.Context) chan struct{} {
+	done := make(chan struct{})
 	r := gin.Default()
+	cloudflare.SetRemoteAddr(r)
 	store := persistence.NewInMemoryStore(time.Hour)
-	r.Use(cors.New(
+
+	r.Use(addCors(), handler.LimitMiddleware, checkHost)
+
+	r.GET("/", cache.CachePageWithoutHeader(store, time.Hour, handlerFunc))
+
+	srv = &http.Server{
+		Addr:    config.GlobalConfig.Listen,
+		Handler: r,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	go func() {
+		<-pctx.Done()
+		log.Println("shutting down server...")
+		ctx, cancel := context.WithTimeout(pctx, 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("server shutdown failed:%+v", err)
+		}
+		if err := limit.Limits.SaveCache(); err != nil {
+			log.Fatalf("save to cache failed:%+v", err)
+		}
+		done <- struct{}{}
+	}()
+	return done
+}
+
+func init() {
+	limit.Limits = limit.IPBasedRateLimiters{
+		limit.NewIPBasedRateLimiter(3, time.Second*3, "3s"),
+		limit.NewIPBasedRateLimiter(60, time.Minute, "1m"),
+		limit.NewIPBasedRateLimiter(3600, time.Hour*1, "1h"),
+	}
+	if err := limit.Limits.LoadFromCache(); err != nil {
+		log.Fatalf("load from cache failed:%+v", err)
+	}
+}
+
+func addCors() gin.HandlerFunc {
+	return cors.New(
 		cors.Config{
 			AllowOrigins: []string{"*"},
 			AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowHeaders: []string{"Accept", "Authorization", "Cache-Control", "Content-Type", "DNT", "If-Modified-Since", "Keep-Alive", "Origin", "User-Agent", "X-Requested-With"},
 		},
-	))
+	)
+}
 
-	r.GET("/", cache.CachePage(store, time.Hour, handlerFunc))
-
-	return r.Run(config.GlobalConfig.Listen)
+func checkHost(c *gin.Context) {
+	if c.Request.Host != "soul.48.club" {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 }

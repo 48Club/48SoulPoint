@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -33,7 +32,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	log.Println(GlobalConfig)
 }
 
 func (db database) DSN() string {

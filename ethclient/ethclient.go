@@ -15,7 +15,7 @@ import (
 
 var (
 	Client               *ethclient.Client
-	contract             = common.HexToAddress("0xdB1295c57f62a713f10DdD9DA73a4C6a1700B8b3")
+	contract             = common.HexToAddress("0x928dC5e31de14114f1486c756C30f39Ab9578A92")
 	multicallAdd         = common.HexToAddress("0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C")
 	spabi, _             = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
 	multicallAbi, _      = multicall.MulticallMetaData.GetAbi()
