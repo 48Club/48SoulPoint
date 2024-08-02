@@ -39,9 +39,10 @@ func GetAllMembers(ctx context.Context) (addrs []common.Address, err error) {
 		err = spabi.UnpackIntoInterface(&addrs, "getAllMembers", hex)
 	}
 
-	for _, v := range addrs {
+	for k, v := range addrs {
 		if v == (common.Address{}) {
-			addrs = append(addrs[:0], addrs[1:]...)
+			addrs = addrs[:k]
+			break
 		}
 	}
 	return addrs, err
