@@ -9,7 +9,7 @@ After=network.target
 ExecStart=$(go env GOPATH)/bin/sp
 Restart=always
 LimitNOFILE=infinity
-WorkingDirectory=${PWD}
+WorkingDirectory=${HOME}/.config/sp/
 
 [Install]
 WantedBy=multi-user.target
@@ -17,5 +17,8 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+
+mkdir ${HOME}/.config/sp/
+cp -r config.json ${HOME}/.config/sp/
 
 systemctl enable sp --now
