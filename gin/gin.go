@@ -30,46 +30,57 @@ func handlerFunc(c *gin.Context) {
 		return
 	}
 
-	address := common.HexToAddress(query.Address)
-	tt, _ := time.Parse("20060102", time.Now().AddDate(0, 0, -48).Format("20060102"))
+	var (
+		points  []types.SoulPoints                     // mysql scan result
+		res     interface{}                            // response
+		dbQuery = db.Server.Model(&types.SoulPoints{}) // mysql query
+		errCode = http.StatusInternalServerError       // response code
+		address = common.HexToAddress(query.Address)
+		tt, _   = time.Parse("20060102", time.Now().AddDate(0, 0, -48).Format("20060102"))
+	)
 
-	if query.Address == "" { // empty address query all addresses
-		var points []types.SoulPoints
-
-		tx := db.Server.Model(&types.SoulPoints{}).Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Find(&points)
-		if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
+	if query.Address == "" {
+		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id")
+		errCode = http.StatusOK
+	} else {
+		if !strings.EqualFold(address.Hex(), query.Address) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid address", "data": []types.SoulPoints{}})
 			return
 		}
-
-		if tx.RowsAffected == 0 {
-			c.AbortWithStatusJSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []types.SoulPoints{}}) // no points, return empty, disable cache
-			return
+		if query.Detail {
+			dbQuery = dbQuery.Select("user_id, users.address AS address, points, created")
+		} else {
+			dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Group("user_id")
 		}
-
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": points})
-		return
+		dbQuery = dbQuery.Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix())
 	}
 
-	if !strings.EqualFold(address.Hex(), query.Address) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid address", "data": []types.SoulPoints{}})
-		return
-	}
-
-	var points types.SoulPoints
-	tx := db.Server.Model(&types.SoulPoints{}).Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix()).Find(&points)
+	tx := dbQuery.Find(&points)
 
 	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
+		c.AbortWithStatusJSON(errCode, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
 		return
 	}
 
-	if tx.RowsAffected == 0 || address.Hex() != points.Address {
+	if tx.RowsAffected == 0 {
 		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "no points", "data": []types.SoulPoints{}})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []types.SoulPoints{points}})
+	if query.Address != "" && query.Detail {
+		var details = types.SoulPointsWithDetail{}
+		details.Address = points[0].Address
+		for _, point := range points {
+			details.Points += point.Points
+			details.Detail = append(details.Detail, types.Detail{SnapTime: time.Unix(point.CreatedAt, 0).Format("2006/01/02"), Points: point.Points})
+		}
+		details.Points /= 48
+		res = details
+	} else {
+		res = points
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": res})
 }
 
 var srv *http.Server

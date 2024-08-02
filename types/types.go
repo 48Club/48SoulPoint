@@ -19,6 +19,15 @@ type SoulPoints struct { // mysql table
 	Points    uint64 `gorm:"bigint;not null;column:points" json:"points"`
 	CreatedAt int64  `gorm:"bigint;column:created" json:"-"`
 }
+type SoulPointsWithDetail struct {
+	SoulPoints
+	Detail []Detail `json:"detail"`
+}
+
+type Detail struct {
+	SnapTime string `json:"snap_time"`
+	Points   uint64 `json:"points"`
+}
 
 type SnapTime struct { // mysql table
 	ID        uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id"`
@@ -27,11 +36,7 @@ type SnapTime struct { // mysql table
 
 type Query struct { // gin query
 	Address string `form:"address" json:"address"`
-}
-
-type Response struct { // gin response
-	Address string `json:"address"`
-	Points  uint64 `json:"points"`
+	Detail  bool   `form:"detail" json:"detail"`
 }
 
 func (Users) TableName() string {
