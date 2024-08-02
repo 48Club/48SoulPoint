@@ -3,6 +3,7 @@ package ethclient
 import (
 	"context"
 	"math/big"
+	"sp/config"
 	"sp/contracts/SoulPoint_48Club"
 	"sp/contracts/multicall"
 
@@ -22,8 +23,7 @@ var (
 )
 
 func init() {
-	ec, err := ethclient.Dial("https://0.48.club")
-	// ec, err := ethclient.Dial("/root/.ethereum/geth.ipc")
+	ec, err := ethclient.Dial(config.GlobalConfig.RPC)
 	if err != nil {
 		panic(err)
 	}

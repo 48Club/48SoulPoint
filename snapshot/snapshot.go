@@ -26,6 +26,7 @@ func TakeSnapshot(ctx context.Context) {
 			log.Printf("mysql error: %v", tx.Error)
 			continue
 		}
+
 		if tx.RowsAffected == 0 {
 			_takeSnapshotNow = true
 		} else {
@@ -33,6 +34,7 @@ func TakeSnapshot(ctx context.Context) {
 				_takeSnapshotNow = true
 			}
 		}
+
 		if _takeSnapshotNow {
 			err := sql.Transaction(func(_tx *gorm.DB) error {
 				return TakeSnapshotNow(ctx, _tx)
@@ -44,6 +46,7 @@ func TakeSnapshot(ctx context.Context) {
 			log.Println("take snapshot now")
 
 		}
+
 		rand.Seed(uint64(time.Now().UnixMilli()))
 		stt := time.Duration(rand.Int63n(720-10)+10) * time.Minute
 		log.Printf("sleep %v to next snapshot", stt)

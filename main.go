@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "sp/config"
 	"sp/gin"
 	"sp/snapshot"
 )
@@ -15,7 +16,6 @@ func main() {
 		panic(err)
 
 	}
-
 }
 
 func init() {

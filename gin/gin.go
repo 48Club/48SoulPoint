@@ -3,7 +3,6 @@ package gin
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"sp/db"
 	"sp/types"
@@ -22,44 +21,46 @@ func handlerFunc(c *gin.Context) {
 	var query types.Query
 	err := c.BindQuery(&query)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid query", "data": []gin.H{}})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid query", "data": []types.SoulPoints{}})
 		return
 	}
+
 	address := common.HexToAddress(query.Address)
 	tt, _ := time.Parse("20060102", time.Now().AddDate(0, 0, -48).Format("20060102"))
 
-	log.Println(tt.Unix())
 	if address == (common.Address{}) { // empty address query all addresses
 		var points []types.SoulPoints
 
 		tx := db.Server.Model(&types.SoulPoints{}).Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Find(&points)
 		if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []gin.H{}})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
 			return
 		}
 
 		if tx.RowsAffected == 0 {
-			c.AbortWithStatusJSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []gin.H{}}) // no points, return empty, disable cache
+			c.AbortWithStatusJSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []types.SoulPoints{}}) // no points, return empty, disable cache
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": points})
 		return
 	}
+
 	if !strings.EqualFold(address.Hex(), query.Address) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid address", "data": []gin.H{}})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid address", "data": []types.SoulPoints{}})
 		return
 	}
 
 	var points types.SoulPoints
 	tx := db.Server.Model(&types.SoulPoints{}).Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix()).Find(&points)
+
 	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []gin.H{}})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
 		return
 	}
 
-	if tx.RowsAffected == 0 {
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []gin.H{}}) // no points, return empty,
+	if tx.RowsAffected == 0 || address.Hex() != points.Address {
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "no points", "data": []types.SoulPoints{}})
 		return
 	}
 
@@ -69,7 +70,7 @@ func handlerFunc(c *gin.Context) {
 func Run(ctx context.Context) error {
 
 	r := gin.Default()
-	var store persistence.CacheStore = persistence.NewInMemoryStore(time.Hour)
+	store := persistence.NewInMemoryStore(time.Hour)
 	r.Use(cors.New(
 		cors.Config{
 			AllowOrigins: []string{"*"},

@@ -1,10 +1,9 @@
 package db
 
 import (
-	"fmt"
+	"sp/config"
 	"sp/types"
 
-	// _ "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -16,7 +15,7 @@ type server struct {
 var Server = server{}
 
 func init() {
-	engine, err := gorm.Open(mysql.Open(fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", "root", "1234", "192.168.1.2", 3306, "sp")), &gorm.Config{})
+	engine, err := gorm.Open(mysql.Open(config.GlobalConfig.Database.DSN()), &gorm.Config{})
 
 	if err != nil {
 		panic(err)
