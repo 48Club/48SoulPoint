@@ -144,7 +144,7 @@ func addCors() gin.HandlerFunc {
 }
 
 func checkHost(c *gin.Context) {
-	if c.Request.Host != "soul.48.club" {
+	if c.Request.Host != "soul-api.48.club" {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
