@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>48Club Soul Point</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .top-bar {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            background-color: #1c1c1c;
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-sizing: border-box;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .input-container {
+            display: flex;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #888;
+            background-color: #2c2c2c;
+            color: #ffffff;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]::placeholder {
+            color: #888;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00bfff;
+        }
+
+        .mint-button {
+            background-color: #00bfff;
+            color: #ffffff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .mint-button:hover {
+            background-color: #008ccc;
+        }
+
+        .results {
+            text-align: left;
+            max-height: 60vh;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .results::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .results::-webkit-scrollbar-track {
+            background: #121212;
+        }
+
+        .results::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 10px;
+            border: 3px solid #121212;
+        }
+
+        .results::-webkit-scrollbar-thumb:hover {
+            background-color: #555;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item h2 {
+            margin: 0;
+            font-size: 18px;
+            word-break: break-all;
+        }
+
+        .result-item p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+
+        .result-item ul {
+            padding-left: 20px;
+        }
+
+        .result-item ul li {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .error-message {
+            color: #ff0000;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+
+        .connect-button {
+            background-color: #00bfff;
+            color: #ffffff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+
+        .connect-button:hover {
+            background-color: #008ccc;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="top-bar">
+        <button class="connect-button" id="connectButton">Connect Wallet</button>
+    </div>
+    <div class="container">
+        <h1>48Club Soul Point</h1>
+        <div class="input-container">
+            <input type="text" id="searchInput" placeholder="0x...">
+            <button class="mint-button" id="mintButton" style="display:none;">Mint</button>
+        </div>
+        <div class="error-message" id="error-message"></div>
+        <div class="results" id="results"></div>
+    </div>
+    <script>
+        let userAddress;
+        let provider;
+        let signer;
+        const contractAddress = '0x928dC5e31de14114f1486c756C30f39Ab9578A92';
+        const abi = [
+            "function isMember(address) view returns (bool)",
+            "function mint()",
+            "function getPoint(address) view returns (uint256)"
+        ];
+
+        async function fetchData(query) {
+            let url = 'https://soul-api.48.club/';
+            if (query) {
+                url += `?address=${query}&detail=true`;
+            }
+            const response = await fetch(url);
+            return response.json();
+        }
+
+        function isValidAddress(address) {
+            const regex = /^(0x[a-fA-F0-9]{40})$/;
+            return regex.test(address);
+        }
+
+        async function displayResults(data, query = '') {
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            if (data.code === 200) {
+                if (query) {
+                    const user = data.data;
+                    const detailItems = user.detail.map(detail => `<li>${detail.snap_time}: ${detail.points} points</li>`).join('');
+                    resultsContainer.innerHTML = `
+                        <div class="result-item">
+                            <h2>Address: ${user.address}</h2>
+                            <p>Point: ${user.points}</p>
+                            <h3>Detail:</h3>
+                            <ul>${detailItems}</ul>
+                        </div>
+                    `;
+                } else {
+                    const users = data.data;
+                    const userItems = users.map(user => `
+                        <div class="result-item">
+                            <h2>Address: ${user.address}</h2>
+                            <p>Point: ${user.points}</p>
+                        </div>
+                    `).join('');
+                    resultsContainer.innerHTML = `<h2>All 48Club Souler:</h2>${userItems}`;
+                }
+            } else {
+                resultsContainer.innerHTML = `<p>Errors: ${data.message}</p>`;
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', async function () {
+            const query = this.value.trim();
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = '';
+
+            if (query && !isValidAddress(query)) {
+                errorMessage.innerText = 'Invalid address';
+                return;
+            }
+
+            const data = await fetchData(query);
+            displayResults(data, query);
+        });
+
+        // 页面加载时获取所有用户的数据
+        window.onload = async function () {
+            const data = await fetchData('');
+            displayResults(data);
+            await attemptConnectWallet();
+        };
+
+        async function updateAddress() {
+            const network = await provider.getNetwork();
+            if (network.chainId !== 56) {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x38' }]
+                });
+            }
+
+            userAddress = await signer.getAddress();
+            const shortAddress = `${userAddress.slice(0, 2)}...${userAddress.slice(-4)}`;
+            const contract = new ethers.Contract(contractAddress, abi, signer);
+            const points = await contract.getPoint(userAddress);
+            document.getElementById('connectButton').innerText = `${shortAddress} : ${points}`;
+            checkMembership();
+        }
+
+        async function attemptConnectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    signer = await provider.getSigner();
+                    await updateAddress();
+                } catch (error) {
+                    console.error('Error connecting wallet on load:', error);
+                }
+            }
+        }
+
+        document.getElementById('connectButton').addEventListener('click', async function () {
+            await attemptConnectWallet();
+        });
+
+        async function checkMembership() {
+            const contract = new ethers.Contract(contractAddress, abi, signer);
+            try {
+                const isMember = await contract.isMember(userAddress);
+                if (!isMember) {
+                    document.getElementById('mintButton').style.display = 'block';
+                } else {
+                    document.getElementById('mintButton').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error checking membership:', error);
+            }
+        }
+
+        // 监听账户变更
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', async function () {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                await updateAddress();
+            });
+
+            window.ethereum.on('chainChanged', async function () {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                await updateAddress();
+            });
+        }
+
+        document.getElementById('mintButton').addEventListener('click', async function () {
+            const contract = new ethers.Contract(contractAddress, abi, signer);
+            try {
+                const tx = await contract.mint();
+                await tx.wait();
+                alert('Mint success');
+                document.getElementById('mintButton').style.display = 'none';
+            } catch (error) {
+                alert(`Mint Error: ${error.reason || error.message}`);
+            }
+        });
+    </script>
+</body>
+
+</html>
