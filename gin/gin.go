@@ -40,7 +40,7 @@ func handlerFunc(c *gin.Context) {
 	)
 
 	if query.Address == "" {
-		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id")
+		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("SUM(points) DIV 48 DESC")
 		errCode = http.StatusOK
 	} else {
 		if !strings.EqualFold(address.Hex(), query.Address) {
