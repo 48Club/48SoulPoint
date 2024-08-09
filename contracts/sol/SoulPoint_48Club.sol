@@ -33,25 +33,23 @@ contract Calculator {
     PuissantIndicator internal constant puissantIndicator =
         PuissantIndicator(0x5cC05FDe1D231A840061c1a2D7e913CeDc8EaBaF);
 
-    function getPoint(address user) external view returns (uint256) {
-        uint256 point = 0;
-
-        uint256 kogeBalance = koge.balanceOf(user) / 1e18;
-        if (kogeBalance >= 48) {
-            point += 48;
-        } else {
-            point += kogeBalance;
+    function getPointDetail(
+        address user
+    ) external view returns (address, uint256, uint256, uint256, uint256) {
+        uint256 kogePoint = koge.balanceOf(user) / 1e18;
+        if (kogePoint > 48) {
+            kogePoint = 48;
         }
 
-        uint256 stake = dao.getStake(user) / 1e18;
-        point += stake;
+        uint256 stakePoint = dao.getStake(user) / 1e18;
 
-        uint256 nftBalance = nft.balanceOf(user);
-        if (nftBalance > 0) {
-            point += 480;
+        uint256 nftPoint = nft.balanceOf(user);
+        if (nftPoint > 0) {
+            nftPoint = 480;
         }
 
         address[] memory puissants = puissantIndicator.getPuissants();
+        uint256 bscStakePoint = 0;
         for (uint256 i = 0; i < puissants.length; i++) {
             address _credit = coinbaseHelper.coinbaseToCreditAddress(
                 puissants[i]
@@ -59,10 +57,17 @@ contract Calculator {
             if (_credit == address(0)) {
                 continue;
             }
-            uint256 a = Token(_credit).balanceOf(user) / 1e18;
-            point += a;
+            bscStakePoint += Token(_credit).balanceOf(user) / 1e18;
         }
-        return point;
+
+        return (user, kogePoint, stakePoint, nftPoint, bscStakePoint);
+    }
+
+    function getPoint(address user) external view returns (uint256) {
+        (, uint256 a, uint256 b, uint256 c, uint256 d) = this.getPointDetail(
+            user
+        );
+        return a + b + c + d;
     }
 }
 
