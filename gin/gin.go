@@ -48,7 +48,7 @@ func handlerFunc(c *gin.Context) {
 			return
 		}
 		if query.Detail {
-			dbQuery = dbQuery.Select("user_id, users.address AS address, points, created")
+			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, created").Order("created DESC")
 		} else {
 			dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Group("user_id")
 		}
