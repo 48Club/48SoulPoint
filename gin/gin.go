@@ -72,7 +72,14 @@ func handlerFunc(c *gin.Context) {
 		details.Address = points[0].Address
 		for _, point := range points {
 			details.Points += point.Points
-			details.Detail = append(details.Detail, types.Detail{SnapTime: time.Unix(point.CreatedAt, 0).Format("2006/01/02"), Points: point.Points})
+			details.Detail = append(details.Detail, types.Detail{
+				SnapTime: time.Unix(point.CreatedAt, 0).Format("2006/01/02"),
+				Points:   point.Points,
+				Koge:     point.KogePoint,
+				Stake:    point.StakePoint,
+				Nft:      point.NftPoint,
+				BscStake: point.BscStakePoint,
+			})
 		}
 		details.Points /= 48
 		res = details

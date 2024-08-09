@@ -2,6 +2,7 @@ package types
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
@@ -13,12 +14,17 @@ type Users struct { // mysql table
 }
 
 type SoulPoints struct { // mysql table
-	ID        uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id" json:"-"`
-	Address   string `gorm:"->;-:migration" json:"address"`
-	UserID    uint64 `gorm:"bigint;not null;column:user_id" json:"-"`
-	Points    uint64 `gorm:"bigint;not null;column:points" json:"points"`
-	CreatedAt int64  `gorm:"bigint;column:created" json:"-"`
+	ID            uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id" json:"-"`
+	Address       string `gorm:"->;-:migration" json:"address"`
+	UserID        uint64 `gorm:"bigint;not null;column:user_id" json:"-"`
+	Points        uint64 `gorm:"bigint;not null;column:points" json:"points"`
+	KogePoint     uint64 `gorm:"bigint;column:koge_point;default:0" json:"-"`
+	StakePoint    uint64 `gorm:"bigint;column:stake_point;default:0" json:"-"`
+	NftPoint      uint64 `gorm:"bigint;column:nft_point;default:0" json:"-"`
+	BscStakePoint uint64 `gorm:"bigint;column:bsc_stake_point;default:0" json:"-"`
+	CreatedAt     int64  `gorm:"bigint;column:created" json:"-"`
 }
+
 type SoulPointsWithDetail struct {
 	SoulPoints
 	Detail []Detail `json:"detail"`
@@ -27,6 +33,10 @@ type SoulPointsWithDetail struct {
 type Detail struct {
 	SnapTime string `json:"snap_time"`
 	Points   uint64 `json:"points"`
+	Koge     uint64 `json:"koge"`
+	Stake    uint64 `json:"stake"`
+	Nft      uint64 `json:"nft"`
+	BscStake uint64 `json:"bsc_stake"`
 }
 
 type SnapTime struct { // mysql table
@@ -37,6 +47,17 @@ type SnapTime struct { // mysql table
 type Query struct { // gin query
 	Address string `form:"address" json:"address"`
 	Detail  bool   `form:"detail" json:"detail"`
+}
+
+type CalculatorDetail struct {
+	Addr                                           common.Address
+	KogePoint, StakePoint, NftPoint, BscStakePoint *big.Int
+}
+
+func (c CalculatorDetail) Sum() *big.Int {
+	return new(big.Int).SetUint64(
+		c.KogePoint.Uint64() + c.StakePoint.Uint64() + c.NftPoint.Uint64() + c.BscStakePoint.Uint64(),
+	)
 }
 
 func (Users) TableName() string {

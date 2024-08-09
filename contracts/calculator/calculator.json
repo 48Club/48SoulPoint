@@ -1,0 +1,60 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            }
+        ],
+        "name": "getPoint",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            }
+        ],
+        "name": "getPointDetail",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "kogePoint",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "stakePoint",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "nftPoint",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "bscStakePoint",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

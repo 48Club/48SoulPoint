@@ -72,9 +72,16 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB) error {
 		return err
 	}
 
-	for addr, point := range maps {
-		sp := types.SoulPoints{UserID: 0, Points: point.Uint64(), CreatedAt: time.Now().Unix()}
-		if err := sp.Insert(sql, addr); err != nil {
+	for _, point := range maps {
+		sp := types.SoulPoints{
+			UserID:        0,
+			Points:        point.Sum().Uint64(),
+			KogePoint:     point.KogePoint.Uint64(),
+			StakePoint:    point.StakePoint.Uint64(),
+			NftPoint:      point.NftPoint.Uint64(),
+			BscStakePoint: point.BscStakePoint.Uint64(),
+		}
+		if err := sp.Insert(sql, point.Addr); err != nil {
 			log.Printf("sp.InsertOne error: %v", err)
 			return err
 		}

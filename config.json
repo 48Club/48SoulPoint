@@ -6,6 +6,6 @@
         "port": 3306,
         "database": "sp"
     },
-    "rpc": "/root/.ethereum/geth.ipc",
+    "rpc": "https://0.48.club",
     "listen": ":9091"
 }
