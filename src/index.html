@@ -233,7 +233,17 @@
             if (data.code === 200) {
                 if (query) {
                     const user = data.data;
-                    const detailItems = user.detail.map(detail => `<li>${detail.snap_time}: ${detail.points} points</li>`).join('');
+                    const detailItems = user.detail.map(detail => {
+                        let detailContent = `<li><strong>${detail.snap_time}:</strong> ${detail.points} points<ul>`;
+
+                        if (detail.koge !== 0) detailContent += `<li>Koge: ${detail.koge}</li>`;
+                        if (detail.stake !== 0) detailContent += `<li>Stake: ${detail.stake}</li>`;
+                        if (detail.nft !== 0) detailContent += `<li>NFT: ${detail.nft}</li>`;
+                        if (detail.bsc_stake !== 0) detailContent += `<li>BSC Stake: ${detail.bsc_stake}</li>`;
+
+                        detailContent += `</ul></li>`;
+                        return detailContent;
+                    }).join('');
                     resultsContainer.innerHTML = `
                         <div class="result-item">
                             <h2>Address: ${user.address}</h2>
