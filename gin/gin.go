@@ -40,7 +40,7 @@ func handlerFunc(c *gin.Context) {
 	)
 
 	if query.Address == "" {
-		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("SUM(points) DIV 48 DESC")
+		dbQuery = dbQuery.Select("user_id, users.address AS address, CAST(AVG(points) AS UNSIGNED) AS points, COUNT(user_id) AS `count`, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("CAST(AVG(points) AS UNSIGNED) DESC")
 		errCode = http.StatusOK
 	} else {
 		if !strings.EqualFold(address.Hex(), query.Address) {
@@ -50,7 +50,7 @@ func handlerFunc(c *gin.Context) {
 		if query.Detail {
 			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, created").Order("created DESC")
 		} else {
-			dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 48 AS points, created").Group("user_id")
+			dbQuery = dbQuery.Select("user_id, users.address AS address, CAST(AVG(points) AS UNSIGNED) AS points, COUNT(user_id) AS `count`, created").Group("user_id")
 		}
 		dbQuery = dbQuery.Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix())
 	}
@@ -81,7 +81,8 @@ func handlerFunc(c *gin.Context) {
 				BscStake: point.BscStakePoint,
 			})
 		}
-		details.Points /= 48
+		details.Count = uint64(len(points))
+		details.Points /= details.Count
 		res = details
 	} else {
 		res = points

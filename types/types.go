@@ -16,6 +16,7 @@ type Users struct { // mysql table
 type SoulPoints struct { // mysql table
 	ID            uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id" json:"-"`
 	Address       string `gorm:"->;-:migration" json:"address"`
+	Count         uint64 `gorm:"->;-:migration" json:"count"` // count of lines, min 1, max 48
 	UserID        uint64 `gorm:"bigint;not null;column:user_id" json:"-"`
 	Points        uint64 `gorm:"bigint;not null;column:points" json:"points"`
 	KogePoint     uint64 `gorm:"bigint;column:koge_point;default:0" json:"-"`
