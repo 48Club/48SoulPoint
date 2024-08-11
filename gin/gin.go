@@ -36,11 +36,11 @@ func handlerFunc(c *gin.Context) {
 		dbQuery = db.Server.Model(&types.SoulPoints{}) // mysql query
 		errCode = http.StatusInternalServerError       // response code
 		address = common.HexToAddress(query.Address)
-		tt, _   = time.Parse("20060102", time.Now().AddDate(0, 0, -48).Format("20060102"))
+		tt, _   = time.Parse("20060102", time.Now().AddDate(0, 0, -2).Format("20060102"))
 	)
 
 	if query.Address == "" {
-		dbQuery = dbQuery.Select("user_id, users.address AS address, CAST(AVG(points) AS UNSIGNED) AS points, COUNT(user_id) AS `count`, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("CAST(AVG(points) AS UNSIGNED) DESC")
+		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 2 AS points, COUNT(user_id) AS `count`, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("SUM(points) DIV 2 DESC")
 		errCode = http.StatusOK
 	} else {
 		if !strings.EqualFold(address.Hex(), query.Address) {
@@ -50,7 +50,7 @@ func handlerFunc(c *gin.Context) {
 		if query.Detail {
 			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, created").Order("created DESC")
 		} else {
-			dbQuery = dbQuery.Select("user_id, users.address AS address, CAST(AVG(points) AS UNSIGNED) AS points, COUNT(user_id) AS `count`, created").Group("user_id")
+			dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 2 AS points, COUNT(user_id) AS `count`, created").Group("user_id")
 		}
 		dbQuery = dbQuery.Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix())
 	}
