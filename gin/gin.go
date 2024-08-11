@@ -82,7 +82,7 @@ func handlerFunc(c *gin.Context) {
 			})
 		}
 		details.Count = uint64(len(points))
-		details.Points /= details.Count
+		details.Points /= 2
 		res = details
 	} else {
 		res = points

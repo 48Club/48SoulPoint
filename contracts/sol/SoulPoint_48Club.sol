@@ -3,10 +3,10 @@ pragma solidity >=0.6.0 <=0.8.20;
 
 contract Token {
     function balanceOf(address account) external view returns (uint256) {}
-}
 
-contract NFT {
-    function balanceOf(address owner) public view virtual returns (uint256) {}
+    function getPooledBNBByShares(
+        uint256 shares
+    ) external view returns (uint256) {}
 }
 
 contract DAO {
@@ -26,7 +26,8 @@ contract PuissantIndicator {
 contract Calculator {
     Token internal constant koge =
         Token(0xe6DF05CE8C8301223373CF5B969AFCb1498c5528);
-    NFT internal constant nft = NFT(0x57b81C140BdfD35dbfbB395360a66D54a650666D);
+    Token internal constant nft =
+        Token(0x57b81C140BdfD35dbfbB395360a66D54a650666D);
     DAO internal constant dao = DAO(0xa31F6B577704B4622d2ba63F6aa1b7e92fe8C8a9);
     CoinbaseHelper internal constant coinbaseHelper =
         CoinbaseHelper(0x32Bb57eAA91566488A76371043113bc38b144BDE);
@@ -57,7 +58,10 @@ contract Calculator {
             if (_credit == address(0)) {
                 continue;
             }
-            bscStakePoint += Token(_credit).balanceOf(user) / 1e18;
+            uint256 balance = Token(_credit).balanceOf(user);
+            bscStakePoint +=
+                (Token(_credit).getPooledBNBByShares(balance) * 48) /
+                1e18;
         }
 
         return (user, kogePoint, stakePoint, nftPoint, bscStakePoint);
