@@ -3,6 +3,7 @@ package gin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sp/config"
@@ -31,16 +32,35 @@ func handlerFunc(c *gin.Context) {
 	}
 
 	var (
-		points  []types.SoulPoints                     // mysql scan result
-		res     interface{}                            // response
-		dbQuery = db.Server.Model(&types.SoulPoints{}) // mysql query
-		errCode = http.StatusInternalServerError       // response code
-		address = common.HexToAddress(query.Address)
-		tt, _   = time.Parse("20060102", time.Now().AddDate(0, 0, -2).Format("20060102"))
+		points        []types.SoulPoints                             // mysql scan result
+		res           interface{}                                    // response
+		dbQuery       = db.Server.Debug().Model(&types.SoulPoints{}) // mysql query
+		errCode       = http.StatusInternalServerError               // response code
+		address       = common.HexToAddress(query.Address)
+		st            []types.SnapTime // mysql scan result
+		snapshotCount uint64
 	)
 
+	tx := db.Server.Order("created DESC").Limit(48).Find(&st)
+	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+		c.AbortWithStatusJSON(errCode, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
+		return
+	}
+
+	if tx.RowsAffected == 48 {
+		snapshotCount = 48
+	} else if tx.RowsAffected >= 2 {
+		snapshotCount = 2
+	} else {
+		// no snapshot
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "no points", "data": []types.SoulPoints{}})
+		return
+	}
+
+	sumQueryStr := fmt.Sprintf("user_id, users.address AS address, SUM(points) DIV %d AS points, COUNT(user_id) AS `count`, created", snapshotCount)
+
 	if query.Address == "" {
-		dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 2 AS points, COUNT(user_id) AS `count`, created").Joins("RIGHT JOIN users ON user_id = users.id").Where("created > ?", tt.Unix()).Group("user_id").Order("SUM(points) DIV 2 DESC")
+		dbQuery = dbQuery.Select(sumQueryStr).Joins("RIGHT JOIN users ON user_id = users.id").Where("created BETWEEN ? AND ? AND points > 0", st[snapshotCount-1].CreatedAt, st[0].CreatedAt).Group("user_id").Order("points DESC")
 		errCode = http.StatusOK
 	} else {
 		if !strings.EqualFold(address.Hex(), query.Address) {
@@ -50,12 +70,12 @@ func handlerFunc(c *gin.Context) {
 		if query.Detail {
 			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, created").Order("created DESC")
 		} else {
-			dbQuery = dbQuery.Select("user_id, users.address AS address, SUM(points) DIV 2 AS points, COUNT(user_id) AS `count`, created").Group("user_id")
+			dbQuery = dbQuery.Select(sumQueryStr).Group("user_id")
 		}
-		dbQuery = dbQuery.Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created > ?", address.Hex(), tt.Unix())
+		dbQuery = dbQuery.Joins("RIGHT JOIN users ON user_id = users.id").Where("users.address = ? AND created BETWEEN ? AND ?", address.Hex(), st[snapshotCount-1].CreatedAt, st[0].CreatedAt)
 	}
 
-	tx := dbQuery.Find(&points)
+	tx = dbQuery.Find(&points)
 
 	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 		c.AbortWithStatusJSON(errCode, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
@@ -82,7 +102,7 @@ func handlerFunc(c *gin.Context) {
 			})
 		}
 		details.Count = uint64(len(points))
-		details.Points /= 2
+		details.Points /= snapshotCount
 		res = details
 	} else {
 		res = points

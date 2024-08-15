@@ -16,7 +16,6 @@ var Server = server{}
 
 func init() {
 	engine, err := gorm.Open(mysql.Open(config.GlobalConfig.Database.DSN()), &gorm.Config{})
-
 	if err != nil {
 		panic(err)
 	}

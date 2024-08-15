@@ -36,5 +36,4 @@ func init() {
 
 func (db database) DSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", db.Username, db.Password, db.Host, db.Port, db.Database)
-
 }

@@ -55,11 +55,11 @@ func TakeSnapshot(ctx context.Context) {
 }
 
 func TakeSnapshotNow(ctx context.Context, sql *gorm.DB) error {
-	tx := sql.Create(&types.SnapTime{})
+	tt := time.Now().Unix()
+	tx := sql.Create(&types.SnapTime{CreatedAt: tt})
 	if tx.Error != nil {
 		return tx.Error
 	}
-	time.Sleep(time.Second)
 
 	addrs, err := ethclient.GetAllMembers(ctx)
 	if err != nil {
@@ -80,6 +80,7 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB) error {
 			StakePoint:    point.StakePoint.Uint64(),
 			NftPoint:      point.NftPoint.Uint64(),
 			BscStakePoint: point.BscStakePoint.Uint64(),
+			CreatedAt:     tt,
 		}
 		if err := sp.Insert(sql, point.Addr); err != nil {
 			log.Printf("sp.InsertOne error: %v", err)
