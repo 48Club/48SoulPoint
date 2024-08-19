@@ -53,6 +53,25 @@ func GetAllMembers(ctx context.Context) (addrs []common.Address, err error) {
 }
 
 func GetAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDetail, error) {
+	// addrs 最大一次性查询 100 个, 超过 100 个分批查询
+	res := []types.CalculatorDetail{}
+
+	for i := 0; i < len(addrs); i += 100 {
+		end := i + 100
+		if end > len(addrs) {
+			end = len(addrs)
+		}
+		sp, err := getAllSp(ctx, addrs[i:end])
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, sp...)
+	}
+
+	return res, nil
+}
+
+func getAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDetail, error) {
 	mapAddrsSp := []types.CalculatorDetail{}
 
 	calls := []multicall.Struct0{}
