@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/48Club/service_agent/cloudflare"
 	"github.com/48Club/service_agent/handler"
 	"github.com/48Club/service_agent/limit"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,6 +48,8 @@ func handlerFunc(c *gin.Context) {
 
 	if tx.RowsAffected == 48 {
 		snapshotCount = 48
+	} else if tx.RowsAffected >= 7 {
+		snapshotCount = 7
 	} else if tx.RowsAffected >= 2 {
 		snapshotCount = 2
 	} else {
@@ -116,7 +117,8 @@ var srv *http.Server
 func Run(pctx context.Context) chan struct{} {
 	done := make(chan struct{})
 	r := gin.Default()
-	cloudflare.SetRemoteAddr(r)
+	r.TrustedPlatform = gin.PlatformCloudflare
+
 	store := persistence.NewInMemoryStore(time.Hour)
 
 	r.Use(addCors(), handler.LimitMiddleware, checkHost)

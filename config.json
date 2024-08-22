@@ -7,5 +7,6 @@
         "database": "sp"
     },
     "rpc": "https://0.48.club",
-    "listen": ":9091"
+    "listen": ":9091",
+    "waf_key": "xxxxx"
 }
