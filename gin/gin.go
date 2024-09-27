@@ -46,7 +46,7 @@ func handlerFunc(c *gin.Context) {
 		return
 	}
 
-	if tx.RowsAffected == 48 {
+	if tx.RowsAffected == 48 && time.Now().Unix() > 1727740800 {
 		snapshotCount = 48
 	} else if tx.RowsAffected >= 7 {
 		snapshotCount = 7
