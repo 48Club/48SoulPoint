@@ -19,7 +19,7 @@ var (
 	Client               *ethclient.Client
 	contract             = common.HexToAddress("0x928dC5e31de14114f1486c756C30f39Ab9578A92")
 	multicallAdd         = common.HexToAddress("0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C")
-	calculatorAdd        = common.HexToAddress("0xa1a46a202cc867826Ed433c361449623c6f28359")
+	calculatorAdd        = common.HexToAddress("0xE44deeC14af9c3fFA5175452CbC60CC9F4A8a2c1")
 	spabi, _             = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
 	multicallAbi, _      = multicall.MulticallMetaData.GetAbi()
 	calculatorAbi, _     = calculator.CalculatorMetaData.GetAbi()

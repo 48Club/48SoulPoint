@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0 <=0.8.20;
+pragma solidity >=0.6.0 <=0.8.28;
 
 contract Token {
     function balanceOf(address account) external view returns (uint256) {}
@@ -7,6 +7,10 @@ contract Token {
     function getPooledBNBByShares(
         uint256 shares
     ) external view returns (uint256) {}
+
+    function delegates(
+        address account
+    ) external view returns (address) {}
 }
 
 contract DAO {
@@ -28,11 +32,15 @@ contract Calculator {
         Token(0xe6DF05CE8C8301223373CF5B969AFCb1498c5528);
     Token internal constant nft =
         Token(0x57b81C140BdfD35dbfbB395360a66D54a650666D);
+    Token internal constant govBNB =
+        Token(0x0000000000000000000000000000000000002005);
     DAO internal constant dao = DAO(0xa31F6B577704B4622d2ba63F6aa1b7e92fe8C8a9);
     CoinbaseHelper internal constant coinbaseHelper =
         CoinbaseHelper(0x32Bb57eAA91566488A76371043113bc38b144BDE);
     PuissantIndicator internal constant puissantIndicator =
         PuissantIndicator(0x5cC05FDe1D231A840061c1a2D7e913CeDc8EaBaF);
+    address internal constant The48ClubGovAddr = 0xaACc290a1A4c89F5D7bc29913122F5982916de48;
+
 
     function getPointDetail(
         address user
@@ -60,8 +68,13 @@ contract Calculator {
             }
             uint256 balance = Token(_credit).balanceOf(user);
             bscStakePoint +=
-                (Token(_credit).getPooledBNBByShares(balance) * 48) /
+                (Token(_credit).getPooledBNBByShares(balance) * 24) /
                 1e18;
+        }
+
+        if (govBNB.delegates(user) == The48ClubGovAddr) {
+            uint256 govBalance = govBNB.balanceOf(user);
+            bscStakePoint += (govBalance * 12) / 1e18;
         }
 
         return (user, kogePoint, stakePoint, nftPoint, bscStakePoint);
