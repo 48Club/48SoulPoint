@@ -52,6 +52,11 @@
                 "internalType": "uint256",
                 "name": "bscStakePoint",
                 "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "govBNBPoint",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",

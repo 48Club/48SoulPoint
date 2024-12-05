@@ -23,6 +23,7 @@ type SoulPoints struct { // mysql table
 	StakePoint    uint64 `gorm:"bigint;column:stake_point;default:0" json:"-"`
 	NftPoint      uint64 `gorm:"bigint;column:nft_point;default:0" json:"-"`
 	BscStakePoint uint64 `gorm:"bigint;column:bsc_stake_point;default:0" json:"-"`
+	GovBNBPoint   uint64 `gorm:"bigint;column:gov_bnb_point;default:0" json:"-"`
 	CreatedAt     int64  `gorm:"bigint;column:created" json:"-"`
 }
 
@@ -51,13 +52,13 @@ type Query struct { // gin query
 }
 
 type CalculatorDetail struct {
-	Addr                                           common.Address
-	KogePoint, StakePoint, NftPoint, BscStakePoint *big.Int
+	Addr                                                        common.Address
+	KogePoint, StakePoint, NftPoint, BscStakePoint, GovBNBPoint *big.Int
 }
 
 func (c CalculatorDetail) Sum() *big.Int {
 	return new(big.Int).SetUint64(
-		c.KogePoint.Uint64() + c.StakePoint.Uint64() + c.NftPoint.Uint64() + c.BscStakePoint.Uint64(),
+		c.KogePoint.Uint64() + c.StakePoint.Uint64() + c.NftPoint.Uint64() + c.BscStakePoint.Uint64() + c.GovBNBPoint.Uint64(),
 	)
 }
 

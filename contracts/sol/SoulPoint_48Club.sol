@@ -8,9 +8,7 @@ contract Token {
         uint256 shares
     ) external view returns (uint256) {}
 
-    function delegates(
-        address account
-    ) external view returns (address) {}
+    function delegates(address account) external view returns (address) {}
 }
 
 contract DAO {
@@ -34,31 +32,76 @@ contract Calculator {
         Token(0x57b81C140BdfD35dbfbB395360a66D54a650666D);
     Token internal constant govBNB =
         Token(0x0000000000000000000000000000000000002005);
+
     DAO internal constant dao = DAO(0xa31F6B577704B4622d2ba63F6aa1b7e92fe8C8a9);
+
     CoinbaseHelper internal constant coinbaseHelper =
         CoinbaseHelper(0x32Bb57eAA91566488A76371043113bc38b144BDE);
+
     PuissantIndicator internal constant puissantIndicator =
         PuissantIndicator(0x5cC05FDe1D231A840061c1a2D7e913CeDc8EaBaF);
-    address internal constant The48ClubGovAddr = 0xaACc290a1A4c89F5D7bc29913122F5982916de48;
 
+    address internal constant The48ClubGovAddr =
+        0xaACc290a1A4c89F5D7bc29913122F5982916de48;
+    uint256 internal constant decimals = 10 ** 18;
 
     function getPointDetail(
         address user
-    ) external view returns (address, uint256, uint256, uint256, uint256) {
-        uint256 kogePoint = koge.balanceOf(user) / 1e18;
-        if (kogePoint > 48) {
-            kogePoint = 48;
+    )
+        external
+        view
+        returns (address, uint256, uint256, uint256, uint256, uint256)
+    {
+        return (
+            user,
+            this.getKogePoint(user),
+            this.getStakePoint(user),
+            this.getNftPoint(user),
+            this.getBscStakePoint(user),
+            this.getGovBNBPoint(user)
+        );
+    }
+
+    function getPoint(address user) external view returns (uint256) {
+        return
+            this.getKogePoint(user) +
+            this.getStakePoint(user) +
+            this.getNftPoint(user) +
+            this.getBscStakePoint(user) +
+            this.getGovBNBPoint(user);
+    }
+
+    function getGovBNBPoint(address user) external view returns (uint256) {
+        if (govBNB.delegates(user) == The48ClubGovAddr) {
+            return (govBNB.balanceOf(user) * 12) / decimals;
         }
+        return 0;
+    }
 
-        uint256 stakePoint = dao.getStake(user) / 1e18;
+    function getKogePoint(address user) external view returns (uint256) {
+        uint256 kogePoint = koge.balanceOf(user) / decimals;
+        if (kogePoint > 48) {
+            return 48;
+        }
+        return kogePoint;
+    }
 
+    function getStakePoint(address user) external view returns (uint256) {
+        return dao.getStake(user) / decimals;
+    }
+
+    function getNftPoint(address user) external view returns (uint256) {
         uint256 nftPoint = nft.balanceOf(user);
         if (nftPoint > 0) {
-            nftPoint = 480;
+            return 480;
         }
+        return 0;
+    }
 
+    function getBscStakePoint(address user) external view returns (uint256) {
         address[] memory puissants = puissantIndicator.getPuissants();
         uint256 bscStakePoint = 0;
+
         for (uint256 i = 0; i < puissants.length; i++) {
             address _credit = coinbaseHelper.coinbaseToCreditAddress(
                 puissants[i]
@@ -66,25 +109,12 @@ contract Calculator {
             if (_credit == address(0)) {
                 continue;
             }
+
             uint256 balance = Token(_credit).balanceOf(user);
-            bscStakePoint +=
-                (Token(_credit).getPooledBNBByShares(balance) * 24) /
-                1e18;
+            bscStakePoint += Token(_credit).getPooledBNBByShares(balance);
         }
 
-        if (govBNB.delegates(user) == The48ClubGovAddr) {
-            uint256 govBalance = govBNB.balanceOf(user);
-            bscStakePoint += (govBalance * 12) / 1e18;
-        }
-
-        return (user, kogePoint, stakePoint, nftPoint, bscStakePoint);
-    }
-
-    function getPoint(address user) external view returns (uint256) {
-        (, uint256 a, uint256 b, uint256 c, uint256 d) = this.getPointDetail(
-            user
-        );
-        return a + b + c + d;
+        return (bscStakePoint * 24) / decimals;
     }
 }
 

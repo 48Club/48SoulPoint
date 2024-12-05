@@ -69,7 +69,7 @@ func handlerFunc(c *gin.Context) {
 			return
 		}
 		if query.Detail {
-			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, created").Order("created DESC")
+			dbQuery = dbQuery.Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, gov_bnb_point, created").Order("created DESC")
 		} else {
 			dbQuery = dbQuery.Select(sumQueryStr).Group("user_id")
 		}
@@ -99,7 +99,7 @@ func handlerFunc(c *gin.Context) {
 				Koge:     point.KogePoint,
 				Stake:    point.StakePoint,
 				Nft:      point.NftPoint,
-				BscStake: point.BscStakePoint,
+				BscStake: point.BscStakePoint + point.GovBNBPoint,
 			})
 		}
 		details.Count = uint64(len(points))

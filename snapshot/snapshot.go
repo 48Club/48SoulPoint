@@ -80,6 +80,7 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB) error {
 			StakePoint:    point.StakePoint.Uint64(),
 			NftPoint:      point.NftPoint.Uint64(),
 			BscStakePoint: point.BscStakePoint.Uint64(),
+			GovBNBPoint:   point.GovBNBPoint.Uint64(),
 			CreatedAt:     tt,
 		}
 		if err := sp.Insert(sql, point.Addr); err != nil {

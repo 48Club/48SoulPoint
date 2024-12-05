@@ -31,7 +31,7 @@ var (
 
 // CalculatorMetaData contains all meta data concerning the Calculator contract.
 var CalculatorMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getPoint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getPointDetail\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"kogePoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"stakePoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nftPoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bscStakePoint\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getPoint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"}],\"name\":\"getPointDetail\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"kogePoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"stakePoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"nftPoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"bscStakePoint\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"govBNBPoint\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 }
 
 // CalculatorABI is the input ABI used to generate the binding from.
@@ -213,13 +213,14 @@ func (_Calculator *CalculatorCallerSession) GetPoint(user common.Address) (*big.
 
 // GetPointDetail is a free data retrieval call binding the contract method 0xd4f07058.
 //
-// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint)
+// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint, uint256 govBNBPoint)
 func (_Calculator *CalculatorCaller) GetPointDetail(opts *bind.CallOpts, user common.Address) (struct {
 	Addr          common.Address
 	KogePoint     *big.Int
 	StakePoint    *big.Int
 	NftPoint      *big.Int
 	BscStakePoint *big.Int
+	GovBNBPoint   *big.Int
 }, error) {
 	var out []interface{}
 	err := _Calculator.contract.Call(opts, &out, "getPointDetail", user)
@@ -230,6 +231,7 @@ func (_Calculator *CalculatorCaller) GetPointDetail(opts *bind.CallOpts, user co
 		StakePoint    *big.Int
 		NftPoint      *big.Int
 		BscStakePoint *big.Int
+		GovBNBPoint   *big.Int
 	})
 	if err != nil {
 		return *outstruct, err
@@ -240,6 +242,7 @@ func (_Calculator *CalculatorCaller) GetPointDetail(opts *bind.CallOpts, user co
 	outstruct.StakePoint = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
 	outstruct.NftPoint = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
 	outstruct.BscStakePoint = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
+	outstruct.GovBNBPoint = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
 
 	return *outstruct, err
 
@@ -247,26 +250,28 @@ func (_Calculator *CalculatorCaller) GetPointDetail(opts *bind.CallOpts, user co
 
 // GetPointDetail is a free data retrieval call binding the contract method 0xd4f07058.
 //
-// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint)
+// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint, uint256 govBNBPoint)
 func (_Calculator *CalculatorSession) GetPointDetail(user common.Address) (struct {
 	Addr          common.Address
 	KogePoint     *big.Int
 	StakePoint    *big.Int
 	NftPoint      *big.Int
 	BscStakePoint *big.Int
+	GovBNBPoint   *big.Int
 }, error) {
 	return _Calculator.Contract.GetPointDetail(&_Calculator.CallOpts, user)
 }
 
 // GetPointDetail is a free data retrieval call binding the contract method 0xd4f07058.
 //
-// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint)
+// Solidity: function getPointDetail(address user) view returns(address addr, uint256 kogePoint, uint256 stakePoint, uint256 nftPoint, uint256 bscStakePoint, uint256 govBNBPoint)
 func (_Calculator *CalculatorCallerSession) GetPointDetail(user common.Address) (struct {
 	Addr          common.Address
 	KogePoint     *big.Int
 	StakePoint    *big.Int
 	NftPoint      *big.Int
 	BscStakePoint *big.Int
+	GovBNBPoint   *big.Int
 }, error) {
 	return _Calculator.Contract.GetPointDetail(&_Calculator.CallOpts, user)
 }
