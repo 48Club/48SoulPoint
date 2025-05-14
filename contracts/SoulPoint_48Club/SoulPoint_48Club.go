@@ -31,7 +31,7 @@ var (
 
 // SoulPoint48ClubMetaData contains all meta data concerning the SoulPoint48Club contract.
 var SoulPoint48ClubMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"getAllMembers\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"getPoint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_calculator\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"member\",\"type\":\"address\"}],\"name\":\"Minted\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"getMember\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"start\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"limit\",\"type\":\"uint256\"}],\"name\":\"getMembers\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMembersCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"getPoint\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isMember\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"mint\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_calculator\",\"type\":\"address\"}],\"name\":\"setCalculator\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"start\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"limit\",\"type\":\"uint256\"}],\"name\":\"upgrade\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // SoulPoint48ClubABI is the input ABI used to generate the binding from.
@@ -180,12 +180,43 @@ func (_SoulPoint48Club *SoulPoint48ClubTransactorRaw) Transact(opts *bind.Transa
 	return _SoulPoint48Club.Contract.contract.Transact(opts, method, params...)
 }
 
-// GetAllMembers is a free data retrieval call binding the contract method 0x7c0f6b35.
+// GetMember is a free data retrieval call binding the contract method 0xab3545e5.
 //
-// Solidity: function getAllMembers() view returns(address[])
-func (_SoulPoint48Club *SoulPoint48ClubCaller) GetAllMembers(opts *bind.CallOpts) ([]common.Address, error) {
+// Solidity: function getMember(uint256 index) view returns(address)
+func (_SoulPoint48Club *SoulPoint48ClubCaller) GetMember(opts *bind.CallOpts, index *big.Int) (common.Address, error) {
 	var out []interface{}
-	err := _SoulPoint48Club.contract.Call(opts, &out, "getAllMembers")
+	err := _SoulPoint48Club.contract.Call(opts, &out, "getMember", index)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetMember is a free data retrieval call binding the contract method 0xab3545e5.
+//
+// Solidity: function getMember(uint256 index) view returns(address)
+func (_SoulPoint48Club *SoulPoint48ClubSession) GetMember(index *big.Int) (common.Address, error) {
+	return _SoulPoint48Club.Contract.GetMember(&_SoulPoint48Club.CallOpts, index)
+}
+
+// GetMember is a free data retrieval call binding the contract method 0xab3545e5.
+//
+// Solidity: function getMember(uint256 index) view returns(address)
+func (_SoulPoint48Club *SoulPoint48ClubCallerSession) GetMember(index *big.Int) (common.Address, error) {
+	return _SoulPoint48Club.Contract.GetMember(&_SoulPoint48Club.CallOpts, index)
+}
+
+// GetMembers is a free data retrieval call binding the contract method 0x6e7ba939.
+//
+// Solidity: function getMembers(uint256 start, uint256 limit) view returns(address[])
+func (_SoulPoint48Club *SoulPoint48ClubCaller) GetMembers(opts *bind.CallOpts, start *big.Int, limit *big.Int) ([]common.Address, error) {
+	var out []interface{}
+	err := _SoulPoint48Club.contract.Call(opts, &out, "getMembers", start, limit)
 
 	if err != nil {
 		return *new([]common.Address), err
@@ -197,18 +228,49 @@ func (_SoulPoint48Club *SoulPoint48ClubCaller) GetAllMembers(opts *bind.CallOpts
 
 }
 
-// GetAllMembers is a free data retrieval call binding the contract method 0x7c0f6b35.
+// GetMembers is a free data retrieval call binding the contract method 0x6e7ba939.
 //
-// Solidity: function getAllMembers() view returns(address[])
-func (_SoulPoint48Club *SoulPoint48ClubSession) GetAllMembers() ([]common.Address, error) {
-	return _SoulPoint48Club.Contract.GetAllMembers(&_SoulPoint48Club.CallOpts)
+// Solidity: function getMembers(uint256 start, uint256 limit) view returns(address[])
+func (_SoulPoint48Club *SoulPoint48ClubSession) GetMembers(start *big.Int, limit *big.Int) ([]common.Address, error) {
+	return _SoulPoint48Club.Contract.GetMembers(&_SoulPoint48Club.CallOpts, start, limit)
 }
 
-// GetAllMembers is a free data retrieval call binding the contract method 0x7c0f6b35.
+// GetMembers is a free data retrieval call binding the contract method 0x6e7ba939.
 //
-// Solidity: function getAllMembers() view returns(address[])
-func (_SoulPoint48Club *SoulPoint48ClubCallerSession) GetAllMembers() ([]common.Address, error) {
-	return _SoulPoint48Club.Contract.GetAllMembers(&_SoulPoint48Club.CallOpts)
+// Solidity: function getMembers(uint256 start, uint256 limit) view returns(address[])
+func (_SoulPoint48Club *SoulPoint48ClubCallerSession) GetMembers(start *big.Int, limit *big.Int) ([]common.Address, error) {
+	return _SoulPoint48Club.Contract.GetMembers(&_SoulPoint48Club.CallOpts, start, limit)
+}
+
+// GetMembersCount is a free data retrieval call binding the contract method 0x09772f8f.
+//
+// Solidity: function getMembersCount() view returns(uint256)
+func (_SoulPoint48Club *SoulPoint48ClubCaller) GetMembersCount(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _SoulPoint48Club.contract.Call(opts, &out, "getMembersCount")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetMembersCount is a free data retrieval call binding the contract method 0x09772f8f.
+//
+// Solidity: function getMembersCount() view returns(uint256)
+func (_SoulPoint48Club *SoulPoint48ClubSession) GetMembersCount() (*big.Int, error) {
+	return _SoulPoint48Club.Contract.GetMembersCount(&_SoulPoint48Club.CallOpts)
+}
+
+// GetMembersCount is a free data retrieval call binding the contract method 0x09772f8f.
+//
+// Solidity: function getMembersCount() view returns(uint256)
+func (_SoulPoint48Club *SoulPoint48ClubCallerSession) GetMembersCount() (*big.Int, error) {
+	return _SoulPoint48Club.Contract.GetMembersCount(&_SoulPoint48Club.CallOpts)
 }
 
 // GetPoint is a free data retrieval call binding the contract method 0x4ff531b6.
@@ -240,4 +302,263 @@ func (_SoulPoint48Club *SoulPoint48ClubSession) GetPoint(account common.Address)
 // Solidity: function getPoint(address account) view returns(uint256)
 func (_SoulPoint48Club *SoulPoint48ClubCallerSession) GetPoint(account common.Address) (*big.Int, error) {
 	return _SoulPoint48Club.Contract.GetPoint(&_SoulPoint48Club.CallOpts, account)
+}
+
+// IsMember is a free data retrieval call binding the contract method 0xa230c524.
+//
+// Solidity: function isMember(address ) view returns(bool)
+func (_SoulPoint48Club *SoulPoint48ClubCaller) IsMember(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+	var out []interface{}
+	err := _SoulPoint48Club.contract.Call(opts, &out, "isMember", arg0)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsMember is a free data retrieval call binding the contract method 0xa230c524.
+//
+// Solidity: function isMember(address ) view returns(bool)
+func (_SoulPoint48Club *SoulPoint48ClubSession) IsMember(arg0 common.Address) (bool, error) {
+	return _SoulPoint48Club.Contract.IsMember(&_SoulPoint48Club.CallOpts, arg0)
+}
+
+// IsMember is a free data retrieval call binding the contract method 0xa230c524.
+//
+// Solidity: function isMember(address ) view returns(bool)
+func (_SoulPoint48Club *SoulPoint48ClubCallerSession) IsMember(arg0 common.Address) (bool, error) {
+	return _SoulPoint48Club.Contract.IsMember(&_SoulPoint48Club.CallOpts, arg0)
+}
+
+// Mint is a paid mutator transaction binding the contract method 0x1249c58b.
+//
+// Solidity: function mint() returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactor) Mint(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SoulPoint48Club.contract.Transact(opts, "mint")
+}
+
+// Mint is a paid mutator transaction binding the contract method 0x1249c58b.
+//
+// Solidity: function mint() returns()
+func (_SoulPoint48Club *SoulPoint48ClubSession) Mint() (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.Mint(&_SoulPoint48Club.TransactOpts)
+}
+
+// Mint is a paid mutator transaction binding the contract method 0x1249c58b.
+//
+// Solidity: function mint() returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactorSession) Mint() (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.Mint(&_SoulPoint48Club.TransactOpts)
+}
+
+// SetCalculator is a paid mutator transaction binding the contract method 0xc53468f0.
+//
+// Solidity: function setCalculator(address _calculator) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactor) SetCalculator(opts *bind.TransactOpts, _calculator common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.contract.Transact(opts, "setCalculator", _calculator)
+}
+
+// SetCalculator is a paid mutator transaction binding the contract method 0xc53468f0.
+//
+// Solidity: function setCalculator(address _calculator) returns()
+func (_SoulPoint48Club *SoulPoint48ClubSession) SetCalculator(_calculator common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.SetCalculator(&_SoulPoint48Club.TransactOpts, _calculator)
+}
+
+// SetCalculator is a paid mutator transaction binding the contract method 0xc53468f0.
+//
+// Solidity: function setCalculator(address _calculator) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactorSession) SetCalculator(_calculator common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.SetCalculator(&_SoulPoint48Club.TransactOpts, _calculator)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.contract.Transact(opts, "transferOwnership", newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_SoulPoint48Club *SoulPoint48ClubSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.TransferOwnership(&_SoulPoint48Club.TransactOpts, newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(address newOwner) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.TransferOwnership(&_SoulPoint48Club.TransactOpts, newOwner)
+}
+
+// Upgrade is a paid mutator transaction binding the contract method 0x451450ec.
+//
+// Solidity: function upgrade(uint256 start, uint256 limit) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactor) Upgrade(opts *bind.TransactOpts, start *big.Int, limit *big.Int) (*types.Transaction, error) {
+	return _SoulPoint48Club.contract.Transact(opts, "upgrade", start, limit)
+}
+
+// Upgrade is a paid mutator transaction binding the contract method 0x451450ec.
+//
+// Solidity: function upgrade(uint256 start, uint256 limit) returns()
+func (_SoulPoint48Club *SoulPoint48ClubSession) Upgrade(start *big.Int, limit *big.Int) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.Upgrade(&_SoulPoint48Club.TransactOpts, start, limit)
+}
+
+// Upgrade is a paid mutator transaction binding the contract method 0x451450ec.
+//
+// Solidity: function upgrade(uint256 start, uint256 limit) returns()
+func (_SoulPoint48Club *SoulPoint48ClubTransactorSession) Upgrade(start *big.Int, limit *big.Int) (*types.Transaction, error) {
+	return _SoulPoint48Club.Contract.Upgrade(&_SoulPoint48Club.TransactOpts, start, limit)
+}
+
+// SoulPoint48ClubMintedIterator is returned from FilterMinted and is used to iterate over the raw logs and unpacked data for Minted events raised by the SoulPoint48Club contract.
+type SoulPoint48ClubMintedIterator struct {
+	Event *SoulPoint48ClubMinted // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SoulPoint48ClubMintedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SoulPoint48ClubMinted)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SoulPoint48ClubMinted)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SoulPoint48ClubMintedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SoulPoint48ClubMintedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SoulPoint48ClubMinted represents a Minted event raised by the SoulPoint48Club contract.
+type SoulPoint48ClubMinted struct {
+	Member common.Address
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterMinted is a free log retrieval operation binding the contract event 0x90ddedd5a25821bba11fbb98de02ec1f75c1be90ae147d6450ce873e7b78b5d8.
+//
+// Solidity: event Minted(address indexed member)
+func (_SoulPoint48Club *SoulPoint48ClubFilterer) FilterMinted(opts *bind.FilterOpts, member []common.Address) (*SoulPoint48ClubMintedIterator, error) {
+
+	var memberRule []interface{}
+	for _, memberItem := range member {
+		memberRule = append(memberRule, memberItem)
+	}
+
+	logs, sub, err := _SoulPoint48Club.contract.FilterLogs(opts, "Minted", memberRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SoulPoint48ClubMintedIterator{contract: _SoulPoint48Club.contract, event: "Minted", logs: logs, sub: sub}, nil
+}
+
+// WatchMinted is a free log subscription operation binding the contract event 0x90ddedd5a25821bba11fbb98de02ec1f75c1be90ae147d6450ce873e7b78b5d8.
+//
+// Solidity: event Minted(address indexed member)
+func (_SoulPoint48Club *SoulPoint48ClubFilterer) WatchMinted(opts *bind.WatchOpts, sink chan<- *SoulPoint48ClubMinted, member []common.Address) (event.Subscription, error) {
+
+	var memberRule []interface{}
+	for _, memberItem := range member {
+		memberRule = append(memberRule, memberItem)
+	}
+
+	logs, sub, err := _SoulPoint48Club.contract.WatchLogs(opts, "Minted", memberRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SoulPoint48ClubMinted)
+				if err := _SoulPoint48Club.contract.UnpackLog(event, "Minted", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseMinted is a log parse operation binding the contract event 0x90ddedd5a25821bba11fbb98de02ec1f75c1be90ae147d6450ce873e7b78b5d8.
+//
+// Solidity: event Minted(address indexed member)
+func (_SoulPoint48Club *SoulPoint48ClubFilterer) ParseMinted(log types.Log) (*SoulPoint48ClubMinted, error) {
+	event := new(SoulPoint48ClubMinted)
+	if err := _SoulPoint48Club.contract.UnpackLog(event, "Minted", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }

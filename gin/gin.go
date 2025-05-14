@@ -144,9 +144,6 @@ func Run(pctx context.Context) chan struct{} {
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("server shutdown failed:%+v", err)
 		}
-		if err := limit.Limits.SaveCache(); err != nil {
-			log.Fatalf("save to cache failed:%+v", err)
-		}
 		done <- struct{}{}
 	}()
 	return done
@@ -154,13 +151,10 @@ func Run(pctx context.Context) chan struct{} {
 
 func init() {
 	limit.Limits = limit.IPBasedRateLimiters{
-		limit.NewIPBasedRateLimiter(3, time.Second*3, "3s"),
-		limit.NewIPBasedRateLimiter(60, time.Minute, "1m"),
-		limit.NewIPBasedRateLimiter(3600, time.Hour*1, "1h"),
+		limit.NewIPBasedRateLimiter(3, time.Second*3),
+		limit.NewIPBasedRateLimiter(60, time.Minute),
 	}
-	if err := limit.Limits.LoadFromCache(); err != nil {
-		log.Fatalf("load from cache failed:%+v", err)
-	}
+
 }
 
 func addCors() gin.HandlerFunc {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0 <=0.8.28;
+pragma solidity >=0.8.28;
 
 contract Token {
     function balanceOf(address account) external view returns (uint256) {}
@@ -118,75 +118,98 @@ contract Calculator {
     }
 }
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+contract OldContract {
+    function getAllMembers() external view returns (address[] memory) {}
+}
 
 // abigen --abi contracts/sol/abi.json --pkg SoulPoint_48Club --out contracts/SoulPoint_48Club/SoulPoint_48Club.go
 
-contract SoulPoint_48Club is ERC20, Ownable(msg.sender) {
-    constructor() ERC20("48SoulPoint", "48SP") {}
-
-    uint256 internal maxHolding = 1;
+contract SoulPoint_48Club {
     mapping(address => bool) public isMember;
     address[] internal _members;
     Calculator internal calculator;
+    address internal owner;
+
+    constructor(address _calculator) {
+        calculator = Calculator(_calculator);
+        owner = msg.sender;
+    }
+
+    OldContract internal constant oldContract =
+        OldContract(0x928dC5e31de14114f1486c756C30f39Ab9578A92);
+
+    function upgrade(uint256 start, uint256 limit) external {
+        require(msg.sender == owner, "Only owner can upgrade");
+        address[] memory members = oldContract.getAllMembers();
+        uint256 total = members.length;
+        if (start >= total) {
+            return;
+        }
+        uint256 end = start + limit;
+        if (end > total) {
+            end = total;
+        }
+        for (uint256 i = start; i < end; i++) {
+            address _to = members[i];
+            if (!isMember[_to]) {
+                isMember[_to] = true;
+                _members.push(_to);
+                emit Minted(_to);
+            }
+        }
+    }
 
     function getPoint(address account) external view returns (uint256) {
         return calculator.getPoint(account);
     }
 
-    function setCaculator(address _calculator) external onlyOwner {
+    function setCalculator(address _calculator) external {
+        require(msg.sender == owner, "Only owner can set calculator");
         calculator = Calculator(_calculator);
     }
 
-    function decimals() public view virtual override returns (uint8) {
-        return 0;
+    function transferOwnership(address newOwner) external {
+        require(msg.sender == owner, "Only owner can transfer ownership");
+        owner = newOwner;
     }
+
+    function getMember(uint256 index) external view returns (address) {
+        require(index < _members.length, "Invalid member index");
+        return _members[index];
+    }
+
+    function getMembers(
+        uint256 start,
+        uint256 limit
+    ) external view returns (address[] memory) {
+        uint256 total = _members.length;
+        if (start >= total) {
+            return new address[](0);
+        }
+
+        uint256 end = start + limit;
+        if (end > total) {
+            end = total;
+        }
+
+        address[] memory result = new address[](end - start);
+        for (uint256 i = start; i < end; i++) {
+            result[i - start] = _members[i];
+        }
+        return result;
+    }
+
+    event Minted(address indexed member);
 
     function mint() external {
         address _to = msg.sender;
-        require(this.getPoint(_to) > 0, "the minimum soul point allowed is 1");
-        _mint(_to, maxHolding);
+        require(!isMember[_to], "Already minted");
+        isMember[_to] = true;
+        _members.push(_to);
+        emit Minted(_to);
     }
 
-    function getAllMembers() external view returns (address[] memory) {
-        address[] memory members = new address[](_members.length);
-        uint256 index = 0;
-        for (uint256 i = 0; i < _members.length; i++) {
-            if (isMember[_members[i]]) {
-                members[index] = _members[i];
-                index++;
-            }
-        }
-
-        return members;
-    }
-
-    function _update(
-        address from,
-        address to,
-        uint256 value
-    ) internal virtual override {
-        require(
-            address(0) == from || address(0) == to,
-            "ERC20: transfer is not allowed"
-        );
-
-        super._update(from, to, value);
-        require(balanceOf(to) <= maxHolding, "Insufficient balance"); // 1 soul per address
-
-        _updateIsMember(to);
-        _updateIsMember(from);
-    }
-
-    function _updateIsMember(address account) internal {
-        if (address(0) != account) {
-            if (balanceOf(account) == maxHolding) {
-                isMember[account] = true;
-                _members.push(account);
-            } else {
-                isMember[account] = false;
-            }
-        }
+    function getMembersCount() external view returns (uint256) {
+        return _members.length;
     }
 }

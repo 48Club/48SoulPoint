@@ -2,6 +2,7 @@ package ethclient
 
 import (
 	"context"
+	"log"
 	"math/big"
 	"sp/config"
 	"sp/contracts/SoulPoint_48Club"
@@ -16,14 +17,13 @@ import (
 )
 
 var (
-	Client               *ethclient.Client
-	contract             = common.HexToAddress("0x928dC5e31de14114f1486c756C30f39Ab9578A92")
-	multicallAdd         = common.HexToAddress("0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C")
-	calculatorAdd        = common.HexToAddress("0x988C52043B1151f9502670150df7Cf6008558aF2")
-	spabi, _             = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
-	multicallAbi, _      = multicall.MulticallMetaData.GetAbi()
-	calculatorAbi, _     = calculator.CalculatorMetaData.GetAbi()
-	getAllMembersData, _ = spabi.Pack("getAllMembers")
+	Client           *ethclient.Client
+	contract         = common.HexToAddress("0x3FF1ae3ff05d452EF3E26A883158D7AAD95231dB")
+	multicallAdd     = common.HexToAddress("0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C")
+	calculatorAdd    = common.HexToAddress("0x988C52043B1151f9502670150df7Cf6008558aF2")
+	spabi, _         = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
+	multicallAbi, _  = multicall.MulticallMetaData.GetAbi()
+	calculatorAbi, _ = calculator.CalculatorMetaData.GetAbi()
 )
 
 func init() {
@@ -35,21 +35,25 @@ func init() {
 }
 
 func GetAllMembers(ctx context.Context) (addrs []common.Address, err error) {
-	hex, err := Client.CallContract(ctx, ethereum.CallMsg{
-		To:   &contract,
-		Data: getAllMembersData,
-	}, nil)
-	if err == nil {
-		err = spabi.UnpackIntoInterface(&addrs, "getAllMembers", hex)
+	logs, err := Client.FilterLogs(ctx, ethereum.FilterQuery{
+		Addresses: []common.Address{contract},
+		FromBlock: big.NewInt(49660490),
+		Topics:    [][]common.Hash{{spabi.Events["Minted"].ID}},
+	})
+	if err != nil {
+		return
 	}
 
-	for k, v := range addrs {
-		if v == (common.Address{}) {
-			addrs = addrs[:k]
-			break
+	for _, _log := range logs {
+		addr := common.BytesToAddress(_log.Topics[1].Bytes())
+		if addr == (common.Address{}) {
+			continue
 		}
+		addrs = append(addrs, addr)
 	}
-	return addrs, err
+	log.Println("filter logs count:", len(logs), "addrs count:", len(addrs))
+
+	return
 }
 
 func GetAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDetail, error) {
