@@ -2,8 +2,11 @@ package ethclient
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
+	"net/http"
 	"sp/config"
 	"sp/contracts/SoulPoint_48Club"
 	"sp/contracts/calculator"
@@ -34,10 +37,41 @@ func init() {
 	Client = ec
 }
 
-func GetAllMembers(ctx context.Context) (addrs []common.Address, err error) {
+func GetBlockByTime(tt int64) (blockNumber *big.Int, err error) {
+	ethScanApiKey := "A52CBHN1GAXZF3ERUMM187C61FJQISR8TY"
+	Api := fmt.Sprintf("https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblocknobytime&timestamp=%d&closest=before&apikey=%s", tt, ethScanApiKey)
+	resp, err := http.DefaultClient.Get(Api)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	type Resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+		Result  string `json:"result"`
+	}
+	var result Resp
+	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return
+	}
+	if result.Status != "1" || result.Message != "OK" {
+		err = fmt.Errorf("etherscan api error: %s", result.Message)
+		return
+	}
+	var b bool
+	blockNumber, b = big.NewInt(0).SetString(result.Result, 10)
+	if !b {
+		err = fmt.Errorf("etherscan api error: invalid block number")
+		return
+	}
+	return
+}
+
+func GetAllMembers(ctx context.Context, ToBlock *big.Int) (addrs []common.Address, err error) {
 	logs, err := Client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{contract},
 		FromBlock: big.NewInt(49660490),
+		ToBlock:   ToBlock,
 		Topics:    [][]common.Hash{{spabi.Events["Minted"].ID}},
 	})
 	if err != nil {
@@ -56,16 +90,13 @@ func GetAllMembers(ctx context.Context) (addrs []common.Address, err error) {
 	return
 }
 
-func GetAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDetail, error) {
+func GetAllSp(ctx context.Context, addrs []common.Address, blockAt *big.Int) ([]types.CalculatorDetail, error) {
 	// addrs 最大一次性查询 100 个, 超过 100 个分批查询
 	res := []types.CalculatorDetail{}
 
 	for i := 0; i < len(addrs); i += 100 {
-		end := i + 100
-		if end > len(addrs) {
-			end = len(addrs)
-		}
-		sp, err := getAllSp(ctx, addrs[i:end])
+		end := min(i+100, len(addrs))
+		sp, err := getAllSp(ctx, addrs[i:end], blockAt)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +106,7 @@ func GetAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDe
 	return res, nil
 }
 
-func getAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDetail, error) {
+func getAllSp(ctx context.Context, addrs []common.Address, blockAt *big.Int) ([]types.CalculatorDetail, error) {
 	mapAddrsSp := []types.CalculatorDetail{}
 
 	calls := []multicall.Struct0{}
@@ -85,7 +116,7 @@ func getAllSp(ctx context.Context, addrs []common.Address) ([]types.CalculatorDe
 	}
 
 	callData, _ := multicallAbi.Pack("aggregate", calls)
-	vals, err := Client.CallContract(ctx, ethereum.CallMsg{To: &multicallAdd, Data: callData}, nil)
+	vals, err := Client.CallContract(ctx, ethereum.CallMsg{To: &multicallAdd, Data: callData}, blockAt)
 	if err != nil {
 		return nil, err
 	}

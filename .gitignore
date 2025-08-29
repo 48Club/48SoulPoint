@@ -21,3 +21,5 @@
 go.work
 go.work.sum
 config.json
+.DS_Store
+.gitignore
