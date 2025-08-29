@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math/big"
 	"math/rand/v2"
 	"sp/db"
 	"sp/ethclient"
@@ -87,7 +88,9 @@ func TakeSnapshot(ctx context.Context) {
 }
 
 func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error {
+	getByHistory := true
 	if len(_tt) == 0 {
+		getByHistory = false
 		_tt = append(_tt, time.Now())
 	}
 	tt := _tt[0].Unix()
@@ -95,9 +98,14 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 	if tx.Error != nil {
 		return tx.Error
 	}
-	block, err := ethclient.GetBlockByTime(tt)
-	if err != nil {
-		return err
+
+	var block *big.Int = nil
+	if getByHistory {
+		var err error
+		block, err = ethclient.GetBlockByTime(tt)
+		if err != nil {
+			return err
+		}
 	}
 
 	addrs, err := ethclient.GetAllMembers(ctx, block)
