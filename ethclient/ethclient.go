@@ -12,6 +12,8 @@ import (
 	"sp/contracts/calculator"
 	"sp/contracts/multicall"
 	"sp/types"
+	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -54,8 +56,17 @@ func GetBlockByTime(tt int64) (blockNumber *big.Int, err error) {
 	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return
 	}
-	if result.Status != "1" || result.Message != "OK" {
-		err = fmt.Errorf("etherscan api error: %s", result.Message)
+	/*
+		{"status":"0","message":"NOTOK","result":"Free API access is temporarily unavailable due to unusually high network activity. To maintain uninterrupted service, we recommend upgrading to a paid plan: https://etherscan.io/apis"}
+	*/
+	if result.Status != "1" {
+		if result.Message != "NOTOK" && strings.Contains(result.Result, "Free API access") {
+			// Free Tier Throttled and retry
+			log.Printf("GetBlockByTime error: Free Tier Throttled, retrying after 5 seconds..., message: %s", result.Result)
+			time.Sleep(5 * time.Second)
+			return GetBlockByTime(tt)
+		}
+		err = fmt.Errorf("etherscan api error: %s", result.Result)
 		return
 	}
 	var b bool
