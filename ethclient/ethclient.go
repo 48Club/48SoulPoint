@@ -2,18 +2,13 @@ package ethclient
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"math/big"
-	"net/http"
 	"sp/config"
 	"sp/contracts/SoulPoint_48Club"
 	"sp/contracts/calculator"
 	"sp/contracts/multicall"
 	"sp/types"
-	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -29,6 +24,11 @@ var (
 	spabi, _         = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
 	multicallAbi, _  = multicall.MulticallMetaData.GetAbi()
 	calculatorAbi, _ = calculator.CalculatorMetaData.GetAbi()
+
+	// 当前区块链每个区块的平均时间(秒)
+	AvgBlockTimeSec = 0.75
+	// 日区块数
+	DayBlockCount = 24 * 60 * 60 / AvgBlockTimeSec
 )
 
 func init() {
@@ -40,42 +40,46 @@ func init() {
 }
 
 func GetBlockByTime(tt int64) (blockNumber *big.Int, err error) {
-	ethScanApiKey := "A52CBHN1GAXZF3ERUMM187C61FJQISR8TY"
-	Api := fmt.Sprintf("https://api.etherscan.io/v2/api?chainid=56&module=block&action=getblocknobytime&timestamp=%d&closest=before&apikey=%s", tt, ethScanApiKey)
-	resp, err := http.DefaultClient.Get(Api)
+	ctx := context.Background()
+
+	// 获取最新区块号
+	latestHeader, err := Client.HeaderByNumber(ctx, nil)
 	if err != nil {
-		return
+		return nil, err
 	}
-	defer resp.Body.Close()
-	type Resp struct {
-		Status  string `json:"status"`
-		Message string `json:"message"`
-		Result  string `json:"result"`
-	}
-	var result Resp
-	if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return
-	}
-	/*
-		{"status":"0","message":"NOTOK","result":"Free API access is temporarily unavailable due to unusually high network activity. To maintain uninterrupted service, we recommend upgrading to a paid plan: https://etherscan.io/apis"}
-	*/
-	if result.Status != "1" {
-		if result.Message != "NOTOK" && strings.Contains(result.Result, "Free API access") {
-			// Free Tier Throttled and retry
-			log.Printf("GetBlockByTime error: Free Tier Throttled, retrying after 5 seconds..., message: %s", result.Result)
-			time.Sleep(5 * time.Second)
-			return GetBlockByTime(tt)
+
+	latest := latestHeader.Number.Uint64()
+	var (
+		left  uint64 = 1
+		right uint64 = latest
+	)
+
+	for left <= right {
+		mid := (left + right) / 2
+		header, err := Client.HeaderByNumber(ctx, big.NewInt(int64(mid)))
+		if err != nil {
+			return nil, err
 		}
-		err = fmt.Errorf("etherscan api error: %s", result.Result)
-		return
+
+		t := int64(header.Time)
+
+		if t == tt {
+			return big.NewInt(int64(mid)), nil
+		}
+
+		if t < tt {
+			// 时间比目标小 → 去右边找
+			left = mid + 1
+		} else {
+			// 时间比目标大 → 去左边找
+			if mid == 0 {
+				break
+			}
+			right = mid - 1
+		}
 	}
-	var b bool
-	blockNumber, b = big.NewInt(0).SetString(result.Result, 10)
-	if !b {
-		err = fmt.Errorf("etherscan api error: invalid block number")
-		return
-	}
-	return
+	// 如果没有完全相等的区块时间，返回小于目标时间的最大区块号 right
+	return big.NewInt(int64(right)), nil
 }
 
 func GetAllMembers(ctx context.Context, ToBlock *big.Int) (addrs []common.Address, err error) {
