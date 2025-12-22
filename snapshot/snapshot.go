@@ -34,10 +34,10 @@ func TakeSnapshot(ctx context.Context) {
 		} else {
 			tt := time.Unix(lastSnapTime.CreatedAt, 0)
 
-			if time.Since(tt) > 24*time.Hour {
-				_takeSnapshotHistory = true
-			} else if time.Now().Format("20060102") != tt.Format("20060102") {
+			if time.Now().Format("20060102") != tt.Format("20060102") {
 				_takeSnapshotNow = true
+			} else if time.Since(tt) > 24*time.Hour {
+				_takeSnapshotHistory = true
 			}
 		}
 		if _takeSnapshotHistory {
