@@ -83,7 +83,11 @@ func GetBlockByTime(tt int64) (blockNumber *big.Int, err error) {
 }
 
 func GetAllMembers(ctx context.Context, ToBlock *big.Int) (addrs []common.Address, err error) {
-	logs, err := Client.FilterLogs(ctx, ethereum.FilterQuery{
+	logServer, err := ethclient.Dial("https://fake-rpc.48.club")
+	if err != nil {
+		return
+	}
+	logs, err := logServer.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{contract},
 		FromBlock: big.NewInt(49660490),
 		ToBlock:   ToBlock,

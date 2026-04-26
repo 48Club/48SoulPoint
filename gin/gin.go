@@ -32,7 +32,7 @@ func handlerFunc(c *gin.Context) {
 
 	var (
 		points        []types.SoulPoints                             // mysql scan result
-		res           interface{}                                    // response
+		res           any                                            // response
 		dbQuery       = db.Server.Debug().Model(&types.SoulPoints{}) // mysql query
 		errCode       = http.StatusInternalServerError               // response code
 		address       = common.HexToAddress(query.Address)
