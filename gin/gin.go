@@ -119,11 +119,11 @@ func Run(pctx context.Context) chan struct{} {
 	r := gin.Default()
 	r.TrustedPlatform = gin.PlatformCloudflare
 
-	store := persistence.NewInMemoryStore(time.Hour)
+	store := persistence.NewInMemoryStore(time.Second * 10)
 
 	r.Use(addCors(), handler.LimitMiddleware, checkHost)
 
-	r.GET("/", cache.CachePageWithoutHeader(store, time.Hour, handlerFunc))
+	r.GET("/", cache.CachePage(store, time.Hour, handlerFunc))
 
 	srv = &http.Server{
 		Addr:    config.GlobalConfig.Listen,
