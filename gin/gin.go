@@ -1,6 +1,7 @@
 package gin
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,10 +16,10 @@ import (
 	"github.com/48Club/service_agent/handler"
 	"github.com/48Club/service_agent/limit"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gin-contrib/cache"
 	"github.com/gin-contrib/cache/persistence"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
@@ -112,7 +113,80 @@ func handlerFunc(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": res})
 }
 
-var srv *http.Server
+var (
+	srv     *http.Server
+	sfGroup singleflight.Group
+)
+
+type cachedResp struct {
+	Status      int
+	ContentType string
+	Body        []byte
+}
+
+type captureWriter struct {
+	gin.ResponseWriter
+	body   bytes.Buffer
+	status int
+}
+
+func (w *captureWriter) Write(b []byte) (int, error)       { return w.body.Write(b) }
+func (w *captureWriter) WriteString(s string) (int, error) { return w.body.WriteString(s) }
+func (w *captureWriter) WriteHeader(code int)              { w.status = code }
+func (w *captureWriter) WriteHeaderNow()                   {}
+func (w *captureWriter) Written() bool                     { return w.body.Len() > 0 || w.status != 0 }
+func (w *captureWriter) Size() int                         { return w.body.Len() }
+func (w *captureWriter) Status() int {
+	if w.status == 0 {
+		return http.StatusOK
+	}
+	return w.status
+}
+
+// sfCachePage 用 singleflight 防止缓存过期时的击穿：同一 key 并发请求只有一个执行
+// 真正的 handler，其余等待并共享结果，之后写入缓存供后续请求直接命中。
+func sfCachePage(store persistence.CacheStore, expire time.Duration, handle gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.Request.URL.RequestURI()
+
+		// 快路径：缓存命中直接返回
+		var cached cachedResp
+		if err := store.Get(key, &cached); err == nil {
+			c.Data(cached.Status, cached.ContentType, cached.Body)
+			return
+		}
+
+		// 慢路径：singleflight 保证同一 key 只有一个 goroutine 执行 handler
+		v, _, _ := sfGroup.Do(key, func() (any, error) {
+			// double-check：可能已被另一个 goroutine 填充
+			var cached2 cachedResp
+			if err := store.Get(key, &cached2); err == nil {
+				return &cached2, nil
+			}
+
+			origWriter := c.Writer
+			cw := &captureWriter{ResponseWriter: origWriter}
+			c.Writer = cw
+			handle(c)
+			c.Writer = origWriter
+
+			resp := &cachedResp{
+				Status:      cw.Status(),
+				ContentType: origWriter.Header().Get("Content-Type"),
+				Body:        cw.body.Bytes(),
+			}
+			// 只缓存正常响应，避免将错误结果长期缓存
+			if resp.Status == http.StatusOK {
+				_ = store.Set(key, resp, expire)
+			}
+			return resp, nil
+		})
+
+		if resp, ok := v.(*cachedResp); ok {
+			c.Data(resp.Status, resp.ContentType, resp.Body)
+		}
+	}
+}
 
 func Run(pctx context.Context) chan struct{} {
 	done := make(chan struct{})
@@ -123,7 +197,7 @@ func Run(pctx context.Context) chan struct{} {
 
 	r.Use(addCors(), handler.LimitMiddleware, checkHost)
 
-	r.GET("/", cache.CachePage(store, time.Hour, handlerFunc))
+	r.GET("/", sfCachePage(store, time.Hour, handlerFunc))
 
 	srv = &http.Server{
 		Addr:    config.GlobalConfig.Listen,
