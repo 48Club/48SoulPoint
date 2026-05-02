@@ -177,7 +177,7 @@ func sfCachePage(store persistence.CacheStore, expire time.Duration, handle gin.
 			}
 			// 只缓存正常响应，避免将错误结果长期缓存
 			if resp.Status == http.StatusOK {
-				_ = store.Set(key, resp, expire)
+				_ = store.Set(key, *resp, expire)
 			}
 			return resp, nil
 		})
