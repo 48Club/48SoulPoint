@@ -44,6 +44,9 @@ contract Calculator {
     address internal constant The48ClubGovAddr =
         0xaACc290a1A4c89F5D7bc29913122F5982916de48;
     uint256 internal constant decimals = 10 ** 18;
+    // 1.48 倍加成，用 148/100 整数表达
+    uint256 internal constant boostNum = 148;
+    uint256 internal constant boostDen = 100;
 
     function getPointDetail(
         address user
@@ -54,51 +57,70 @@ contract Calculator {
     {
         return (
             user,
-            this.getKogePoint(user),
-            this.getStakePoint(user),
-            this.getNftPoint(user),
-            this.getBscStakePoint(user),
-            this.getGovBNBPoint(user)
+            _getKogePoint(user),
+            _getStakePoint(user),
+            _getNftPoint(user),
+            _getBscStakePoint(user),
+            _getGovBNBPoint(user)
         );
     }
 
     function getPoint(address user) external view returns (uint256) {
         return
-            this.getKogePoint(user) +
-            this.getStakePoint(user) +
-            this.getNftPoint(user) +
-            this.getBscStakePoint(user) +
-            this.getGovBNBPoint(user);
+            _getKogePoint(user) +
+            _getStakePoint(user) +
+            _getNftPoint(user) +
+            _getBscStakePoint(user) +
+            _getGovBNBPoint(user);
     }
 
     function getGovBNBPoint(address user) external view returns (uint256) {
-        if (govBNB.delegates(user) == The48ClubGovAddr) {
-            return (govBNB.balanceOf(user) * 12) / decimals;
-        }
-        return 0;
+        return _getGovBNBPoint(user);
     }
 
     function getKogePoint(address user) external view returns (uint256) {
-        uint256 kogePoint = koge.balanceOf(user) / decimals;
-        if (kogePoint > 48) {
-            return 48;
-        }
-        return kogePoint;
+        return _getKogePoint(user);
     }
 
     function getStakePoint(address user) external view returns (uint256) {
-        return dao.getStake(user) / decimals;
+        return _getStakePoint(user);
     }
 
     function getNftPoint(address user) external view returns (uint256) {
-        uint256 nftPoint = nft.balanceOf(user);
-        if (nftPoint > 0) {
-            return 480;
+        return _getNftPoint(user);
+    }
+
+    function getBscStakePoint(address user) external view returns (uint256) {
+        return _getBscStakePoint(user);
+    }
+
+    function _getGovBNBPoint(address user) internal view returns (uint256) {
+        if (govBNB.delegates(user) == The48ClubGovAddr) {
+            return
+                (govBNB.balanceOf(user) * 12 * boostNum) /
+                (decimals * boostDen);
         }
         return 0;
     }
 
-    function getBscStakePoint(address user) external view returns (uint256) {
+    function _getKogePoint(address user) internal view returns (uint256) {
+        uint256 kogePoint = koge.balanceOf(user) / decimals;
+        return kogePoint > 48 ? 48 : kogePoint;
+    }
+
+    function _getStakePoint(address user) internal view returns (uint256) {
+        return (dao.getStake(user) * 2) / decimals;
+    }
+
+    function _getNftPoint(address user) internal view returns (uint256) {
+        uint256 nftPoint = nft.balanceOf(user);
+        if (nftPoint > 0) {
+            return (480 * boostNum) / boostDen;
+        }
+        return 0;
+    }
+
+    function _getBscStakePoint(address user) internal view returns (uint256) {
         address[] memory puissants = puissantIndicator.getPuissants();
         uint256 bscStakePoint = 0;
 
@@ -111,10 +133,14 @@ contract Calculator {
             }
 
             uint256 balance = Token(_credit).balanceOf(user);
+            if (balance == 0) {
+                // 0 shares 恒等于 0 pooled BNB,跳过一次外部调用
+                continue;
+            }
             bscStakePoint += Token(_credit).getPooledBNBByShares(balance);
         }
 
-        return (bscStakePoint * 24) / decimals;
+        return (bscStakePoint * 24 * boostNum) / (decimals * boostDen);
     }
 }
 

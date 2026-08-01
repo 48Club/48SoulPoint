@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	_ "sp/config"
+	"sp/db"
 	"sp/gin"
 	"sp/snapshot"
 	"syscall"
@@ -34,4 +35,11 @@ func main() {
 
 func init() {
 	go snapshot.TakeSnapshot(ctx)
+
+	// 启动时预加载明细缓存；失败不阻断启动，读取时会同步兕底加载
+	go func() {
+		if err := db.ReloadDetailCache(); err != nil {
+			log.Printf("load detail cache error: %v", err)
+		}
+	}()
 }

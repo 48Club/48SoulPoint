@@ -3,18 +3,20 @@ package gin
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"sp/config"
 	"sp/db"
+	"sp/ethclient"
 	"sp/types"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/48Club/service_agent/handler"
-	"github.com/48Club/service_agent/limit"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-contrib/cache/persistence"
 	"github.com/gin-contrib/cors"
@@ -22,6 +24,187 @@ import (
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
+
+// rtCache 实时链上数据快照；刷新时在新对象上构建、构建完成后原子替换，
+// 读侧始终拿到完整的旧快照，刷新过程不阻断查询。
+type rtCache struct {
+	points  []types.SoulPoints // points > 0, 按 points 降序
+	byAddr  map[common.Address]types.SoulPoints
+	allJSON []byte // 全量响应预序列化，请求直接写出
+}
+
+const rtSwitchTime = 1786377600 // 2026/8/11 00:00 UTC+8，之后 / 切换为链上实时口径
+
+func levelOf(points uint64) string {
+	switch {
+	case points >= 710:
+		return "Platinum"
+	case points >= 480:
+		return "Gold"
+	case points >= 48:
+		return "Entry"
+	case points >= 1:
+		return "Member"
+	default:
+		return ""
+	}
+}
+
+// handlerLevelsFunc 静态等级表，不含用户数据
+func handlerLevelsFunc(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []gin.H{
+		{"level": "Member", "min": 1, "max": 47},
+		{"level": "Entry", "min": 48, "max": 479},
+		{"level": "Gold", "min": 480, "max": 709},
+		{"level": "Platinum", "min": 710, "max": nil},
+	}})
+}
+
+var rtData atomic.Pointer[rtCache]
+
+const rtRefreshInterval = 15 * time.Minute
+
+func buildRTCache(ctx context.Context) (*rtCache, error) {
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	addrs, err := ethclient.GetAllMembers(cctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	details, err := ethclient.GetAllSp(cctx, addrs, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	cache := &rtCache{
+		byAddr: make(map[common.Address]types.SoulPoints, len(details)),
+	}
+	for _, d := range details {
+		sp := types.SoulPoints{
+			Address:       d.Addr.String(),
+			Count:         1,
+			Points:        d.Sum().Uint64(),
+			KogePoint:     d.KogePoint.Uint64(),
+			StakePoint:    d.StakePoint.Uint64(),
+			NftPoint:      d.NftPoint.Uint64(),
+			BscStakePoint: d.BscStakePoint.Uint64(),
+			GovBNBPoint:   d.GovBNBPoint.Uint64(),
+			CreatedAt:     now.Unix(),
+		}
+		sp.Level = levelOf(sp.Points)
+		cache.byAddr[d.Addr] = sp
+		if sp.Points > 0 {
+			cache.points = append(cache.points, sp)
+		}
+	}
+	sort.Slice(cache.points, func(i, j int) bool {
+		return cache.points[i].Points > cache.points[j].Points
+	})
+
+	allJSON, err := json.Marshal(gin.H{"code": http.StatusOK, "message": "", "data": cache.points})
+	if err != nil {
+		return nil, err
+	}
+	cache.allJSON = allJSON
+	return cache, nil
+}
+
+// refreshRTCache singleflight 合并并发刷新，完成后原子替换快照。
+func refreshRTCache(ctx context.Context) (*rtCache, error) {
+	v, err, _ := sfGroup.Do("rt-refresh", func() (any, error) {
+		return buildRTCache(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	cache := v.(*rtCache)
+	rtData.Store(cache)
+	return cache, nil
+}
+
+func rtRefresher(ctx context.Context) {
+	// 切换前无需刷新；提前一个周期预热，保证切换瞬间已有快照
+	if wait := time.Until(time.Unix(rtSwitchTime, 0).Add(-rtRefreshInterval)); wait > 0 {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+		}
+	}
+	ticker := time.NewTicker(rtRefreshInterval)
+	defer ticker.Stop()
+	for {
+		if _, err := refreshRTCache(ctx); err != nil {
+			log.Printf("refresh rt cache error: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// dbHandler 数据库口径 handler（带页面缓存），Run 中初始化
+var dbHandler gin.HandlerFunc
+
+func handlerIndexFunc(c *gin.Context) {
+	if time.Now().Unix() < rtSwitchTime {
+		dbHandler(c)
+		return
+	}
+
+	var query types.Query
+	err := c.BindQuery(&query)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid query", "data": []types.SoulPoints{}})
+		return
+	}
+
+	cache := rtData.Load()
+	if cache == nil {
+		// 首次未就绪：同步构建一次，并发请求由 singleflight 合并等待
+		cache, err = refreshRTCache(context.Background())
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "chain query error", "data": []types.SoulPoints{}})
+			return
+		}
+	}
+
+	if query.Address == "" {
+		c.Data(http.StatusOK, "application/json; charset=utf-8", cache.allJSON)
+		return
+	}
+
+	address := common.HexToAddress(query.Address)
+	if !strings.EqualFold(address.Hex(), query.Address) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": "Invalid address", "data": []types.SoulPoints{}})
+		return
+	}
+
+	sp, ok := cache.byAddr[address]
+	if !ok || sp.Points == 0 {
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "no points", "data": []types.SoulPoints{}})
+		return
+	}
+
+	if !query.Detail {
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []types.SoulPoints{sp}})
+		return
+	}
+
+	// points/level 实时，detail 明细来自数据库明细缓存
+	dbDetail, err := db.DetailOf(address.Hex())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "mysql error", "data": []types.SoulPoints{}})
+		return
+	}
+	details := types.SoulPointsWithDetail{SoulPoints: sp, Detail: dbDetail}
+	details.Count = uint64(len(dbDetail))
+	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": details})
+}
 
 func handlerFunc(c *gin.Context) {
 	var query types.Query
@@ -89,6 +272,10 @@ func handlerFunc(c *gin.Context) {
 		return
 	}
 
+	for i := range points {
+		points[i].Level = levelOf(points[i].Points)
+	}
+
 	if query.Address != "" && query.Detail {
 		var details = types.SoulPointsWithDetail{}
 		details.Address = points[0].Address
@@ -105,6 +292,7 @@ func handlerFunc(c *gin.Context) {
 		}
 		details.Count = uint64(len(points))
 		details.Points /= snapshotCount
+		details.Level = levelOf(details.Points)
 		res = details
 	} else {
 		res = points
@@ -195,9 +383,16 @@ func Run(pctx context.Context) chan struct{} {
 
 	store := persistence.NewInMemoryStore(time.Second * 10)
 
-	r.Use(addCors(), handler.LimitMiddleware, checkHost)
+	r.Use(addCors(), checkHost)
 
-	r.GET("/", sfCachePage(store, time.Hour, handlerFunc))
+	dbHandler = sfCachePage(store, time.Hour, handlerFunc)
+
+	r.GET("/", handlerIndexFunc)
+
+	r.GET("/levels", handlerLevelsFunc)
+
+	// 后台每 15 分钟刷新实时链上快照，读侧无感知
+	go rtRefresher(pctx)
 
 	srv = &http.Server{
 		Addr:    config.GlobalConfig.Listen,
@@ -221,14 +416,6 @@ func Run(pctx context.Context) chan struct{} {
 		done <- struct{}{}
 	}()
 	return done
-}
-
-func init() {
-	limit.Limits = limit.IPBasedRateLimiters{
-		limit.NewIPBasedRateLimiter(3, time.Second*3),
-		limit.NewIPBasedRateLimiter(60, time.Minute),
-	}
-
 }
 
 func addCors() gin.HandlerFunc {

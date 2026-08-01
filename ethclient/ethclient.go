@@ -20,15 +20,10 @@ var (
 	Client           *ethclient.Client
 	contract         = common.HexToAddress("0x3FF1ae3ff05d452EF3E26A883158D7AAD95231dB")
 	multicallAdd     = common.HexToAddress("0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C")
-	calculatorAdd    = common.HexToAddress("0x988C52043B1151f9502670150df7Cf6008558aF2")
+	calculatorAdd    = common.HexToAddress("0x00000000004435d03512AeCee4a770D6d98E3243")
 	spabi, _         = SoulPoint_48Club.SoulPoint48ClubMetaData.GetAbi()
 	multicallAbi, _  = multicall.MulticallMetaData.GetAbi()
 	calculatorAbi, _ = calculator.CalculatorMetaData.GetAbi()
-
-	// 当前区块链每个区块的平均时间(秒)
-	AvgBlockTimeSec = 0.75
-	// 日区块数
-	DayBlockCount = 24 * 60 * 60 / AvgBlockTimeSec
 )
 
 func init() {

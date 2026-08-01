@@ -36,8 +36,10 @@ func TakeSnapshot(ctx context.Context) {
 
 			if time.Now().Format("20060102") != tt.Format("20060102") {
 				_takeSnapshotNow = true
-			} else if time.Since(tt) > 24*time.Hour {
-				_takeSnapshotHistory = true
+				// 最后快照不是今天，检查中间是否有遗漏天数需要补录
+				if time.Since(tt) > 48*time.Hour {
+					_takeSnapshotHistory = true
+				}
 			}
 		}
 		if _takeSnapshotHistory {
@@ -65,7 +67,7 @@ func TakeSnapshot(ctx context.Context) {
 				log.Printf("take snapshot @ %v", tt)
 			}
 			if !snapshotFinish {
-				break
+				continue // 历史补录未完成，继续外层循环重试
 			}
 		}
 
@@ -79,6 +81,9 @@ func TakeSnapshot(ctx context.Context) {
 			}
 			log.Println("take snapshot now")
 
+			if err := db.ReloadDetailCache(); err != nil {
+				log.Printf("reload detail cache error: %v", err)
+			}
 		}
 
 		stt := time.Duration(rand.Int64N(720-10)+10) * time.Minute
