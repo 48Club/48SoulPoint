@@ -8,5 +8,11 @@
     },
     "rpc": "https://0.48.club",
     "listen": ":9091",
-    "waf_key": "xxxxx"
+    "waf_key": "xxxxx",
+    "test_addr": [
+        {
+            "addr": "0x0000000000000000000000000000000000000000",
+            "nftpoint": 710
+        }
+    ]
 }

@@ -70,6 +70,9 @@ func buildRTCache(ctx context.Context) (*rtCache, error) {
 		return nil, err
 	}
 
+	// 添加测试钱包地址
+	details = append(details, config.GlobalConfig.TestAddr...)
+
 	now := time.Now()
 	cache := &rtCache{
 		byAddr: make(map[common.Address]types.SoulPoints, len(details)),

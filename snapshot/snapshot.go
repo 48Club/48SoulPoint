@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/big"
 	"math/rand/v2"
+	"sp/config"
 	"sp/db"
 	"sp/ethclient"
 	"sp/types"
@@ -123,6 +124,8 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 		log.Printf("ethclient.GetAllSp error: %v", err)
 		return err
 	}
+
+	maps = append(maps, config.GlobalConfig.TestAddr...) // 添加测试钱包地址
 
 	for _, point := range maps {
 		sp := types.SoulPoints{
