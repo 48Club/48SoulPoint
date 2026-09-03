@@ -55,7 +55,10 @@ func handlerLevelsFunc(c *gin.Context) {
 
 var rtData atomic.Pointer[rtCache]
 
-const rtRefreshInterval = 15 * time.Minute
+const (
+	rtRefreshInterval = 15 * time.Minute
+	rtColdStartWait   = 30 * time.Second // 缓存未就绪时请求最多等待首次构建的时长
+)
 
 func buildRTCache(ctx context.Context) (*rtCache, error) {
 	cctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
@@ -107,17 +110,41 @@ func buildRTCache(ctx context.Context) (*rtCache, error) {
 	return cache, nil
 }
 
+// buildAndStore 在 singleflight 内构建并立即发布，等待方超时离开也不丢结果
+func buildAndStore(ctx context.Context) (any, error) {
+	cache, err := buildRTCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rtData.Store(cache)
+	return cache, nil
+}
+
 // refreshRTCache singleflight 合并并发刷新，完成后原子替换快照。
 func refreshRTCache(ctx context.Context) (*rtCache, error) {
 	v, err, _ := sfGroup.Do("rt-refresh", func() (any, error) {
-		return buildRTCache(ctx)
+		return buildAndStore(ctx)
 	})
 	if err != nil {
 		return nil, err
 	}
-	cache := v.(*rtCache)
-	rtData.Store(cache)
-	return cache, nil
+	return v.(*rtCache), nil
+}
+
+// awaitRTCache 等待首次构建完成或 ctx 结束；构建不随 ctx 取消，仍在后台继续
+func awaitRTCache(ctx context.Context) (*rtCache, error) {
+	ch := sfGroup.DoChan("rt-refresh", func() (any, error) {
+		return buildAndStore(context.Background())
+	})
+	select {
+	case r := <-ch:
+		if r.Err != nil {
+			return nil, r.Err
+		}
+		return r.Val.(*rtCache), nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func rtRefresher(ctx context.Context) {
@@ -145,9 +172,16 @@ func handlerIndexFunc(c *gin.Context) {
 
 	cache := rtData.Load()
 	if cache == nil {
-		// 首次未就绪：同步构建一次，并发请求由 singleflight 合并等待
-		cache, err = refreshRTCache(context.Background())
+		// 首次未就绪：有界等待首次构建，并发请求由 singleflight 合并；超时返回 503 让客户端稍后重试
+		wctx, cancel := context.WithTimeout(c.Request.Context(), rtColdStartWait)
+		defer cancel()
+		cache, err = awaitRTCache(wctx)
 		if err != nil {
+			if wctx.Err() != nil {
+				c.Header("Retry-After", "10")
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"code": http.StatusServiceUnavailable, "message": "warming up, retry later", "data": []types.SoulPoints{}})
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": "chain query error", "data": []types.SoulPoints{}})
 			return
 		}
@@ -206,8 +240,12 @@ func Run(pctx context.Context) chan struct{} {
 	go rtRefresher(pctx)
 
 	srv = &http.Server{
-		Addr:    config.GlobalConfig.Listen,
-		Handler: r,
+		Addr:              config.GlobalConfig.Listen,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      60 * time.Second, // 需大于 rtColdStartWait
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
@@ -219,7 +257,8 @@ func Run(pctx context.Context) chan struct{} {
 	go func() {
 		<-pctx.Done()
 		log.Println("shutting down server...")
-		ctx, cancel := context.WithTimeout(pctx, 5*time.Second)
+		// pctx 已取消，不能派生，否则 Shutdown 立即返回不等待在途请求
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("server shutdown failed:%+v", err)

@@ -19,10 +19,7 @@ func TestTakeSnapshotNow(t *testing.T) {
 		t.Error(tx.Error)
 	}
 	var ctx = context.Background()
-	err := sql.Transaction(func(tx *gorm.DB) error {
-		return snapshot.TakeSnapshotNow(ctx, tx)
-	})
-	if err != nil {
+	if err := snapshot.TakeSnapshotNow(ctx, sql.DB); err != nil {
 		t.Error(err)
 	}
 }

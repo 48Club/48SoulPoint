@@ -15,6 +15,21 @@ import (
 	"gorm.io/gorm"
 )
 
+// retryInterval 数据库/链上失败后的重试等待，避免失败路径空转
+const retryInterval = time.Minute
+
+// sleepCtx 等待 d 或 ctx 结束；ctx 结束时返回 false
+func sleepCtx(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
+}
+
 func TakeSnapshot(ctx context.Context) {
 	sql := db.Server
 
@@ -27,6 +42,9 @@ func TakeSnapshot(ctx context.Context) {
 		tx := sql.Order("created desc").First(&lastSnapTime)
 		if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
 			log.Printf("mysql error: %v", tx.Error)
+			if !sleepCtx(ctx, retryInterval) {
+				return
+			}
 			continue
 		}
 
@@ -34,11 +52,12 @@ func TakeSnapshot(ctx context.Context) {
 			_takeSnapshotNow = true
 		} else {
 			tt := time.Unix(lastSnapTime.CreatedAt, 0)
+			today := time.Now().Format("20060102")
 
-			if time.Now().Format("20060102") != tt.Format("20060102") {
+			if today != tt.Format("20060102") {
 				_takeSnapshotNow = true
-				// 最后快照不是今天，检查中间是否有遗漏天数需要补录
-				if time.Since(tt) > 48*time.Hour {
+				// 最后快照早于昨天，中间有遗漏天数需要补录（按日期而非时长判定，避免跨日不满 48h 漏天）
+				if tt.AddDate(0, 0, 1).Format("20060102") != today {
 					_takeSnapshotHistory = true
 				}
 			}
@@ -58,26 +77,27 @@ func TakeSnapshot(ctx context.Context) {
 					break
 				}
 				tt = beginTt.Add(time.Second * time.Duration(rand.Int64N(86400-3600)+1800)) // random 30min~23h
-				err = sql.Transaction(func(_tx *gorm.DB) error {
-					return TakeSnapshotNow(ctx, _tx, tt)
-				})
-				if err != nil {
+				if err := TakeSnapshotNow(ctx, sql.DB, tt); err != nil {
 					log.Printf("takeSnapshotNow error: %v", err)
 					break
 				}
 				log.Printf("take snapshot @ %v", tt)
 			}
 			if !snapshotFinish {
-				continue // 历史补录未完成，继续外层循环重试
+				// 历史补录未完成，退避后继续外层循环重试
+				if !sleepCtx(ctx, retryInterval) {
+					return
+				}
+				continue
 			}
 		}
 
 		if _takeSnapshotNow {
-			err := sql.Transaction(func(_tx *gorm.DB) error {
-				return TakeSnapshotNow(ctx, _tx)
-			})
-			if err != nil {
+			if err := TakeSnapshotNow(ctx, sql.DB); err != nil {
 				log.Printf("takeSnapshotNow error: %v", err)
+				if !sleepCtx(ctx, retryInterval) {
+					return
+				}
 				continue
 			}
 			log.Println("take snapshot now")
@@ -89,10 +109,13 @@ func TakeSnapshot(ctx context.Context) {
 
 		stt := time.Duration(rand.Int64N(720-10)+10) * time.Minute
 		log.Printf("sleep %v to next snapshot", stt)
-		time.Sleep(stt)
+		if !sleepCtx(ctx, stt) {
+			return
+		}
 	}
 }
 
+// TakeSnapshotNow 链上抓取在事务外完成，仅写库收进短事务，避免长事务持锁
 func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error {
 	getByHistory := true
 	if len(_tt) == 0 {
@@ -100,10 +123,6 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 		_tt = append(_tt, time.Now())
 	}
 	tt := _tt[0].Unix()
-	tx := sql.Create(&types.SnapTime{CreatedAt: tt})
-	if tx.Error != nil {
-		return tx.Error
-	}
 
 	var block *big.Int = nil
 	if getByHistory {
@@ -127,22 +146,28 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 
 	maps = append(maps, config.GlobalConfig.TestAddr...) // 添加测试钱包地址
 
-	for _, point := range maps {
-		sp := types.SoulPoints{
-			UserID:        0,
-			Points:        point.Sum().Uint64(),
-			KogePoint:     point.KogePoint.Uint64(),
-			StakePoint:    point.StakePoint.Uint64(),
-			NftPoint:      point.NftPoint.Uint64(),
-			BscStakePoint: point.BscStakePoint.Uint64(),
-			GovBNBPoint:   point.GovBNBPoint.Uint64(),
-			CreatedAt:     tt,
-		}
-		if err := sp.Insert(sql, point.Addr); err != nil {
-			log.Printf("sp.InsertOne error: %v", err)
+	return sql.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&types.SnapTime{CreatedAt: tt}).Error; err != nil {
 			return err
 		}
-	}
 
-	return nil
+		for _, point := range maps {
+			sp := types.SoulPoints{
+				UserID:        0,
+				Points:        point.Sum().Uint64(),
+				KogePoint:     point.KogePoint.Uint64(),
+				StakePoint:    point.StakePoint.Uint64(),
+				NftPoint:      point.NftPoint.Uint64(),
+				BscStakePoint: point.BscStakePoint.Uint64(),
+				GovBNBPoint:   point.GovBNBPoint.Uint64(),
+				CreatedAt:     tt,
+			}
+			if err := sp.Insert(tx, point.Addr); err != nil {
+				log.Printf("sp.InsertOne error: %v", err)
+				return err
+			}
+		}
+
+		return nil
+	})
 }

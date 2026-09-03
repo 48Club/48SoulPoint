@@ -82,6 +82,7 @@ func GetAllMembers(ctx context.Context, ToBlock *big.Int) (addrs []common.Addres
 	if err != nil {
 		return
 	}
+	defer logServer.Close()
 	logs, err := logServer.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{contract},
 		FromBlock: big.NewInt(49660490),
