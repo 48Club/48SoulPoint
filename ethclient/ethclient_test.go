@@ -1,10 +1,15 @@
+//go:build integration
+
 package ethclient
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestGetBlockByTime(t *testing.T) {
 	tt := int64(1763183709)
-	blockNumber, err := GetBlockByTime(tt)
+	blockNumber, err := GetBlockByTime(context.Background(), tt)
 	if err != nil {
 		t.Fatalf("GetBlockByTime error: %v", err)
 	}

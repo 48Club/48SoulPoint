@@ -26,7 +26,12 @@ type database struct {
 var GlobalConfig = Config{}
 
 func init() {
-	file, err := os.ReadFile("config.json")
+	// SP_CONFIG 可指定配置路径，便于在非工作目录（如 go test）下运行
+	path := os.Getenv("SP_CONFIG")
+	if path == "" {
+		path = "config.json"
+	}
+	file, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}

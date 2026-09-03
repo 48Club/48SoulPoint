@@ -12,6 +12,7 @@ import (
 	"sp/types"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 )
 
@@ -127,7 +128,7 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 	var block *big.Int = nil
 	if getByHistory {
 		var err error
-		block, err = ethclient.GetBlockByTime(tt)
+		block, err = ethclient.GetBlockByTime(ctx, tt)
 		if err != nil {
 			return err
 		}
@@ -151,9 +152,19 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 			return err
 		}
 
+		addrs := make([]common.Address, len(maps))
+		for i, point := range maps {
+			addrs[i] = point.Addr
+		}
+		ids, err := types.UserIDs(tx, addrs)
+		if err != nil {
+			return err
+		}
+
+		rows := make([]types.SoulPoints, 0, len(maps))
 		for _, point := range maps {
-			sp := types.SoulPoints{
-				UserID:        0,
+			rows = append(rows, types.SoulPoints{
+				UserID:        ids[point.Addr.String()],
 				Points:        point.Sum().Uint64(),
 				KogePoint:     point.KogePoint.Uint64(),
 				StakePoint:    point.StakePoint.Uint64(),
@@ -161,13 +172,8 @@ func TakeSnapshotNow(ctx context.Context, sql *gorm.DB, _tt ...time.Time) error 
 				BscStakePoint: point.BscStakePoint.Uint64(),
 				GovBNBPoint:   point.GovBNBPoint.Uint64(),
 				CreatedAt:     tt,
-			}
-			if err := sp.Insert(tx, point.Addr); err != nil {
-				log.Printf("sp.InsertOne error: %v", err)
-				return err
-			}
+			})
 		}
-
-		return nil
+		return tx.CreateInBatches(rows, 500).Error
 	})
 }

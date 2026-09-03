@@ -38,7 +38,7 @@ func ReloadDetailCache() error {
 	var rows []types.SoulPoints
 	tx = Server.Model(&types.SoulPoints{}).
 		Select("user_id, users.address AS address, points, koge_point, stake_point, nft_point, bsc_stake_point, gov_bnb_point, created").
-		Joins("RIGHT JOIN users ON user_id = users.id").
+		Joins("JOIN users ON user_id = users.id").
 		Where("created BETWEEN ? AND ?", st[snapshotCount-1].CreatedAt, st[0].CreatedAt).
 		Order("created DESC").Find(&rows)
 	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {

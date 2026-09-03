@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -9,23 +8,23 @@ import (
 )
 
 type Users struct { // mysql table
-	ID      uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id"`
-	Address string `gorm:"varchar(42);not null;unique;column:address"`
+	ID      uint64 `gorm:"primaryKey;autoIncrement;column:id"`
+	Address string `gorm:"size:42;not null;unique;column:address"`
 }
 
 type SoulPoints struct { // mysql table
-	ID            uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id" json:"-"`
+	ID            uint64 `gorm:"primaryKey;autoIncrement;column:id" json:"-"`
 	Address       string `gorm:"->;-:migration" json:"address"`
 	Count         uint64 `gorm:"->;-:migration" json:"count"` // count of lines, min 1, max 48
 	Level         string `gorm:"-" json:"level"`
-	UserID        uint64 `gorm:"bigint;not null;column:user_id" json:"-"`
-	Points        uint64 `gorm:"bigint;not null;column:points" json:"points"`
-	KogePoint     uint64 `gorm:"bigint;column:koge_point;default:0" json:"-"`
-	StakePoint    uint64 `gorm:"bigint;column:stake_point;default:0" json:"-"`
-	NftPoint      uint64 `gorm:"bigint;column:nft_point;default:0" json:"-"`
-	BscStakePoint uint64 `gorm:"bigint;column:bsc_stake_point;default:0" json:"-"`
-	GovBNBPoint   uint64 `gorm:"bigint;column:gov_bnb_point;default:0" json:"-"`
-	CreatedAt     int64  `gorm:"bigint;column:created" json:"-"`
+	UserID        uint64 `gorm:"not null;column:user_id" json:"-"`
+	Points        uint64 `gorm:"not null;column:points" json:"points"`
+	KogePoint     uint64 `gorm:"column:koge_point;default:0" json:"-"`
+	StakePoint    uint64 `gorm:"column:stake_point;default:0" json:"-"`
+	NftPoint      uint64 `gorm:"column:nft_point;default:0" json:"-"`
+	BscStakePoint uint64 `gorm:"column:bsc_stake_point;default:0" json:"-"`
+	GovBNBPoint   uint64 `gorm:"column:gov_bnb_point;default:0" json:"-"`
+	CreatedAt     int64  `gorm:"column:created" json:"-"`
 }
 
 type SoulPointsWithDetail struct {
@@ -43,8 +42,8 @@ type Detail struct {
 }
 
 type SnapTime struct { // mysql table
-	ID        uint64 `gorm:"bigint;primaryKey;autoIncrement;column:id"`
-	CreatedAt int64  `gorm:"bigint;column:created"`
+	ID        uint64 `gorm:"primaryKey;autoIncrement;column:id"`
+	CreatedAt int64  `gorm:"column:created"`
 }
 
 type Query struct { // gin query
@@ -67,36 +66,43 @@ func (Users) TableName() string {
 	return "users"
 }
 
-func (u *Users) GetID(db *gorm.DB) error {
-	tx := db.First(u, "address = ?", common.HexToAddress(u.Address).String())
-	if tx.Error != nil && !errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-		return tx.Error
+// UserIDs 确保所有地址存在于 users，返回地址 -> id；插入后重读而非依赖批量插入回填的连续自增 id
+func UserIDs(db *gorm.DB, addrs []common.Address) (map[string]uint64, error) {
+	load := func() (map[string]uint64, error) {
+		var users []Users
+		if err := db.Find(&users).Error; err != nil {
+			return nil, err
+		}
+		m := make(map[string]uint64, len(users))
+		for _, u := range users {
+			m[u.Address] = u.ID
+		}
+		return m, nil
 	}
-	if tx.RowsAffected == 0 {
-		if err := u.Insert(db); err != nil {
-			return err
+
+	ids, err := load()
+	if err != nil {
+		return nil, err
+	}
+	var missing []Users
+	for _, addr := range addrs {
+		s := addr.String()
+		if _, ok := ids[s]; !ok {
+			ids[s] = 0
+			missing = append(missing, Users{Address: s})
 		}
 	}
-	return nil
-}
-
-func (u *Users) Insert(db *gorm.DB) error {
-	tx := db.Create(u)
-	return tx.Error
+	if len(missing) == 0 {
+		return ids, nil
+	}
+	if err := db.CreateInBatches(missing, 500).Error; err != nil {
+		return nil, err
+	}
+	return load()
 }
 
 func (SoulPoints) TableName() string {
 	return "soul_points"
-}
-
-func (sp *SoulPoints) Insert(db *gorm.DB, add common.Address) error {
-	user := Users{Address: add.String()}
-	if err := user.GetID(db); err != nil {
-		return err
-	}
-	sp.UserID = user.ID
-	tx := db.Create(sp)
-	return tx.Error
 }
 
 func (SnapTime) TableName() string {

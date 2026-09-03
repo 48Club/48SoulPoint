@@ -28,29 +28,41 @@ type rtCache struct {
 	allJSON []byte // 全量响应预序列化，请求直接写出
 }
 
-func levelOf(points uint64) string {
-	switch {
-	case points >= 710:
-		return "Platinum"
-	case points >= 480:
-		return "Gold"
-	case points >= 48:
-		return "Entry"
-	case points >= 1:
-		return "Member"
-	default:
-		return ""
-	}
+// levelMins 等级下限，升序；上限由下一级下限推导，levelOf 与 /levels 共用
+var levelMins = []struct {
+	level string
+	min   uint64
+}{
+	{"Member", 1},
+	{"Entry", 48},
+	{"Gold", 480},
+	{"Platinum", 710},
 }
+
+func levelOf(points uint64) string {
+	for i := len(levelMins) - 1; i >= 0; i-- {
+		if points >= levelMins[i].min {
+			return levelMins[i].level
+		}
+	}
+	return ""
+}
+
+var levelsData = func() []gin.H {
+	data := make([]gin.H, 0, len(levelMins))
+	for i, l := range levelMins {
+		var max any // 最高级无上限
+		if i+1 < len(levelMins) {
+			max = levelMins[i+1].min - 1
+		}
+		data = append(data, gin.H{"level": l.level, "min": l.min, "max": max})
+	}
+	return data
+}()
 
 // handlerLevelsFunc 静态等级表，不含用户数据
 func handlerLevelsFunc(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": []gin.H{
-		{"level": "Member", "min": 1, "max": 47},
-		{"level": "Entry", "min": 48, "max": 479},
-		{"level": "Gold", "min": 480, "max": 709},
-		{"level": "Platinum", "min": 710, "max": nil},
-	}})
+	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "", "data": levelsData})
 }
 
 var rtData atomic.Pointer[rtCache]

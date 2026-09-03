@@ -34,9 +34,7 @@ func init() {
 	Client = ec
 }
 
-func GetBlockByTime(tt int64) (blockNumber *big.Int, err error) {
-	ctx := context.Background()
-
+func GetBlockByTime(ctx context.Context, tt int64) (blockNumber *big.Int, err error) {
 	// 获取最新区块号
 	latestHeader, err := Client.HeaderByNumber(ctx, nil)
 	if err != nil {
